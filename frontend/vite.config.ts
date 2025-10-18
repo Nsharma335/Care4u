@@ -18,9 +18,10 @@ export default defineConfig({
     ],
     proxy: {
       '/api': {
-        target: 'https://loving-regularly-monkfish.ngrok-free.app',
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: true
+        secure: false,
+        ws: true
       }
     }
   }
