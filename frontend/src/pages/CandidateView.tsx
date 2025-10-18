@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import DashboardLayout from "../components/DashboardLayout";
 import {
-  X,
+  ArrowLeft,
   TrendingUp,
   Calendar as CalendarIcon,
   Pill,
@@ -8,8 +10,6 @@ import {
   Check,
   AlertCircle,
   Activity,
-  ArrowLeft,
-  ExternalLink,
 } from "lucide-react";
 import api from "../lib/api";
 import toast from "react-hot-toast";
@@ -26,12 +26,10 @@ import type {
   MedicationSchedule,
 } from "@care4u/shared";
 
-interface CandidateInsightsProps {
-  candidate: Candidate;
-  onClose: () => void;
-}
-
-const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
+const CandidateView = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [logs, setLogs] = useState<MedicationLog[]>([]);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,19 +38,42 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
   >("overview");
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  const navItems = [
+    {
+      label: "Back",
+      path: "#",
+      icon: <ArrowLeft className="w-5 h-5" />,
+    },
+  ];
+
   useEffect(() => {
-    fetchData();
-  }, [candidate.id]);
+    if (id) {
+      fetchData();
+    }
+  }, [id]);
 
   const fetchData = async () => {
     try {
       const [logsRes, schedulesRes] = await Promise.all([
-        api.get(`/api/medications/logs/${candidate.id}`),
-        api.get(`/api/medications/schedule/${candidate.id}`),
+        api.get(`/api/medications/logs/${id}`),
+        api.get(`/api/medications/schedule/${id}`),
       ]);
 
       setLogs(logsRes.data.logs);
       setSchedules(schedulesRes.data.schedules);
+
+      // Get candidate info from first log or schedule
+      if (schedulesRes.data.schedules.length > 0) {
+        // We'll need to add a candidate endpoint or get it from another source
+        // For now, we'll construct a basic candidate object
+        setCandidate({
+          id: id || "",
+          first_name: "Candidate",
+          last_name: "Details",
+          age: 0,
+          created_at: new Date().toISOString(),
+        });
+      }
     } catch (error: any) {
       console.error("Error fetching candidate data:", error);
       toast.error("Failed to load candidate data");
@@ -489,97 +510,99 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-8">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
+      <DashboardLayout title="Candidate Details" navItems={navItems}>
+        <div className="flex items-center justify-center h-screen">
+          <div className="w-16 h-16 border-8 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
         </div>
-      </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!candidate) {
+    return (
+      <DashboardLayout title="Candidate Details" navItems={navItems}>
+        <div className="flex flex-col items-center justify-center h-screen">
+          <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Candidate Not Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            The candidate you're looking for could not be found.
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl my-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-6 rounded-t-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => {
-                  window.open(`/candidate/view/${candidate.id}`, "_blank");
-                }}
-                className="flex items-center space-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-colors"
-              >
-                <ExternalLink className="w-5 h-5" />
-                <span className="text-sm font-medium">Open in New Tab</span>
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold">
+    <DashboardLayout title="Candidate Details" navItems={navItems}>
+      {/* Header */}
+      <div className="mb-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+        <div className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-8 rounded-2xl shadow-xl">
+          <h1 className="text-4xl font-bold">
             {candidate.first_name} {candidate.last_name}
           </h1>
-          <p className="text-primary-100 mt-1">
+          <p className="text-primary-100 mt-2 text-lg">
             Age: {candidate.age} • Health Insights & Medication Management
           </p>
         </div>
+      </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white border-b border-gray-200 px-6">
-          <nav className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "overview"
-                  ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab("calendar")}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "calendar"
-                  ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Calendar
-            </button>
-            <button
-              onClick={() => setActiveTab("medications")}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "medications"
-                  ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Medications
-            </button>
-          </nav>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 max-h-[calc(100vh-280px)] overflow-y-auto">
-          {activeTab === "overview" && renderOverview()}
-          {activeTab === "calendar" && renderCalendar()}
-          {activeTab === "medications" && renderMedications()}
+      {/* Tab Navigation */}
+      <div className="mb-8 bg-white rounded-2xl shadow-md p-2">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+              activeTab === "overview"
+                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("calendar")}
+            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+              activeTab === "calendar"
+                ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Calendar
+          </button>
+          <button
+            onClick={() => setActiveTab("medications")}
+            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+              activeTab === "medications"
+                ? "bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Medications
+          </button>
         </div>
       </div>
-    </div>
+
+      {/* Content */}
+      {activeTab === "overview" && renderOverview()}
+      {activeTab === "calendar" && renderCalendar()}
+      {activeTab === "medications" && renderMedications()}
+    </DashboardLayout>
   );
 };
 
-export default CandidateInsights;
+export default CandidateView;

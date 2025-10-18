@@ -11,6 +11,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: true,
+    allowedHosts: [
+      'loving-regularly-monkfish.ngrok-free.app',
+      '.ngrok-free.app'
+    ],
     proxy: {
       '/api': {
         target: 'https://loving-regularly-monkfish.ngrok-free.app',
