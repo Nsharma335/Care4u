@@ -168,5 +168,109 @@ router.post('/request-call', async (req: AuthRequest, res) => {
   }
 });
 
+// Get all institutes
+router.get('/institutes', async (req: AuthRequest, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('institutes')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    res.json({ institutes: data || [] });
+  } catch (error: any) {
+    console.error('Error fetching institutes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get candidates for a specific institute
+router.get('/institutes/:institute_id/candidates', async (req: AuthRequest, res) => {
+  try {
+    const { institute_id } = req.params;
+
+    const { data, error } = await supabase
+      .from('candidates')
+      .select('*')
+      .eq('institute_id', institute_id)
+      .order('first_name');
+
+    if (error) throw error;
+
+    res.json({ candidates: data || [] });
+  } catch (error: any) {
+    console.error('Error fetching institute candidates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a donation
+router.post('/donations', async (req: AuthRequest, res) => {
+  try {
+    const { institute_id, candidate_id, amount, currency = 'USD', donation_type, message, payment_method } = req.body;
+
+    // Validate required fields
+    if (!institute_id || !amount || !donation_type) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be greater than 0' });
+    }
+
+    // If specific patient donation, validate candidate_id
+    if (donation_type === 'specific_patient' && !candidate_id) {
+      return res.status(400).json({ error: 'Candidate ID required for specific patient donation' });
+    }
+
+    const { data, error } = await supabase
+      .from('donations')
+      .insert({
+        donor_id: req.user!.id,
+        institute_id,
+        candidate_id: donation_type === 'specific_patient' ? candidate_id : null,
+        amount,
+        currency,
+        donation_type,
+        message,
+        payment_method: payment_method || 'card',
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ donation: data });
+  } catch (error: any) {
+    console.error('Error creating donation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user's donation history
+router.get('/donations', async (req: AuthRequest, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('donations')
+      .select(`
+        *,
+        institutes(name, type),
+        candidates(first_name, last_name)
+      `)
+      .eq('donor_id', req.user!.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ donations: data || [] });
+  } catch (error: any) {
+    console.error('Error fetching donations:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

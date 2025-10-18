@@ -200,6 +200,48 @@ export interface UserProfile {
   last_name?: string;
 }
 
+// Institute and Donation Types
+export interface Institute {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'institute' | 'non_profit' | 'charity' | 'hospital' | 'clinic';
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  logo_url?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface Donation {
+  id: string;
+  donor_id: string;
+  institute_id: string;
+  candidate_id?: string;
+  amount: number;
+  currency: string;
+  donation_type: 'general' | 'specific_patient';
+  message?: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  payment_method?: string;
+  transaction_id?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateDonationRequest {
+  institute_id: string;
+  candidate_id?: string;
+  amount: number;
+  currency?: string;
+  donation_type: 'general' | 'specific_patient';
+  message?: string;
+  payment_method?: string;
+}
+
 // Candidate with related data
 export interface CandidateWithRelations extends Candidate {
   family_members?: FamilyMember[];

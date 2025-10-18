@@ -44,10 +44,10 @@ const CandidateDashboard = () => {
     if (profile?.id) {
       fetchData();
     }
-    // Refresh data every minute to keep medication status updated
-    const interval = setInterval(fetchData, 60000);
+    // Refresh data every 2 minutes to keep medication status updated (reduced frequency)
+    const interval = setInterval(fetchData, 120000);
     return () => clearInterval(interval);
-  }, [profile]);
+  }, [profile?.id]); // Only depend on profile ID, not the entire profile object
 
   const fetchData = async () => {
     try {

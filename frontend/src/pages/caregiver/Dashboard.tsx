@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
-import { Activity, Heart, Eye } from "lucide-react";
+import TabContainer from "../../components/TabContainer";
+import { Activity, Heart, Eye, Users, BarChart3, MessageCircle, Wallet, Music } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../lib/api";
 import toast from "react-hot-toast";
@@ -10,6 +11,10 @@ import WellnessCheck from "./components/WellnessCheck";
 import ActivityFeed from "./components/ActivityFeed";
 import MedicationReminder from "../../components/MedicationReminder";
 import CandidateInsights from "../../components/CandidateInsights";
+import PatientProfile from "../../components/PatientProfile";
+import CareInsights from "../../components/CareInsights";
+import CareConnect from "../../components/CareConnect";
+import CareWallet from "../../components/CareWallet";
 import type {
   Candidate,
   MedicationSchedule,
@@ -41,8 +46,8 @@ const CaregiverDashboard = () => {
     fetchCandidates();
     fetchNotifications();
 
-    // Poll for notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll for notifications every 2 minutes instead of 30 seconds to reduce refresh frequency
+    const interval = setInterval(fetchNotifications, 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -50,9 +55,9 @@ const CaregiverDashboard = () => {
     if (selectedCandidate) {
       fetchMedicationData();
     }
-  }, [selectedCandidate]);
+  }, [selectedCandidate?.id]); // Only depend on candidate ID, not the entire object
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = useCallback(async () => {
     try {
       const { data } = await api.get("/api/caregiver/candidates");
       setCandidates(data.candidates);
@@ -65,9 +70,9 @@ const CaregiverDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCandidate]);
 
-  const fetchMedicationData = async () => {
+  const fetchMedicationData = useCallback(async () => {
     if (!selectedCandidate) return;
 
     try {
@@ -82,58 +87,25 @@ const CaregiverDashboard = () => {
       console.error("Error fetching medication data:", error);
       toast.error("Failed to load medication data");
     }
-  };
+  }, [selectedCandidate]);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const { data } = await api.get("/api/medications/notifications");
       setNotifications(data.notifications);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
-  };
+  }, []);
 
-  const handleMedicationConfirmed = () => {
+  const handleMedicationConfirmed = useCallback(() => {
     fetchMedicationData();
     fetchNotifications();
-  };
+  }, [fetchMedicationData, fetchNotifications]);
 
-  if (loading) {
-    return (
-      <DashboardLayout title="Caregiver Portal" navItems={navItems}>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (candidates.length === 0) {
-    return (
-      <DashboardLayout title="Caregiver Portal" navItems={navItems}>
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            No Candidates Assigned
-          </h2>
-          <p className="text-gray-600">
-            Please contact your administrator to get assigned to candidates.
-          </p>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  return (
-    <DashboardLayout title="Caregiver Portal" navItems={navItems}>
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {profile?.first_name}!
-        </h1>
-        <p className="text-gray-600">Manage care for your assigned residents</p>
-      </div>
-
+  // Tab content components - memoized to prevent unnecessary re-renders
+  const CareScheduleContent = useMemo(() => (
+    <div className="space-y-6">
       {/* Candidate Selector */}
       {candidates.length > 0 && (
         <div className="mb-6 flex items-center justify-between">
@@ -171,7 +143,7 @@ const CaregiverDashboard = () => {
       )}
 
       {selectedCandidate && (
-        <div className="space-y-6">
+        <>
           {/* Today's Schedule */}
           <TodaySchedule
             candidate={selectedCandidate}
@@ -190,8 +162,208 @@ const CaregiverDashboard = () => {
             {/* Activity Feed */}
             <ActivityFeed candidateId={selectedCandidate.id} />
           </div>
+        </>
+      )}
+    </div>
+  ), [candidates, selectedCandidate, schedules, logs, handleMedicationConfirmed]);
+
+  const CareCircleContent = useMemo(() => (
+    <div className="space-y-6">
+      {/* Patient Selector */}
+      {candidates.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Users className="w-5 h-5 mr-2 text-primary-600" />
+              Patient Profile
+            </h3>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Patient
+            </label>
+            <select
+              value={selectedCandidate?.id || ""}
+              onChange={(e) => {
+                const candidate = candidates.find(
+                  (c) => c.id === e.target.value
+                );
+                setSelectedCandidate(candidate || null);
+              }}
+              className="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            >
+              {candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.first_name} {candidate.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
+
+      {/* Patient Profile */}
+      {selectedCandidate ? (
+        <PatientProfile 
+          candidate={selectedCandidate}
+          schedules={schedules}
+          logs={logs}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+          <div className="text-center">
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Patient Selected</h3>
+            <p className="text-gray-500">Please select a patient to view their profile</p>
+          </div>
+        </div>
+      )}
+    </div>
+  ), [candidates, selectedCandidate, schedules, logs]);
+
+  const CareInsightsContent = useMemo(() => (
+    <div className="space-y-6">
+      {/* Patient Selector */}
+      {candidates.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <BarChart3 className="w-5 h-5 mr-2 text-primary-600" />
+              Care Insights
+            </h3>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Patient
+            </label>
+            <select
+              value={selectedCandidate?.id || ""}
+              onChange={(e) => {
+                const candidate = candidates.find(
+                  (c) => c.id === e.target.value
+                );
+                setSelectedCandidate(candidate || null);
+              }}
+              className="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            >
+              {candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.first_name} {candidate.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Care Insights Dashboard */}
+      {selectedCandidate ? (
+        <CareInsights 
+          candidate={selectedCandidate}
+          schedules={schedules}
+          logs={logs}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+          <div className="text-center">
+            <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Patient Selected</h3>
+            <p className="text-gray-500">Please select a patient to view their care insights</p>
+          </div>
+        </div>
+      )}
+    </div>
+  ), [candidates, selectedCandidate, schedules, logs]);
+
+  const CareConnectContent = useMemo(() => (
+    <CareConnect candidates={candidates} />
+  ), [candidates]);
+
+  const CareWalletContent = useMemo(() => (
+    <CareWallet candidates={candidates} />
+  ), [candidates]);
+
+  const CareTunesContent = useMemo(() => (
+    <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+      <div className="text-center">
+        <Music className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">CareTunes</h3>
+        <p className="text-gray-500">Coming soon...</p>
+      </div>
+    </div>
+  ), []);
+
+  const tabs = useMemo(() => [
+    {
+      id: "care-schedule",
+      label: "CareSchedule",
+      content: CareScheduleContent
+    },
+    {
+      id: "care-circle",
+      label: "CareCircle",
+      content: CareCircleContent
+    },
+    {
+      id: "care-insights",
+      label: "CareInsights",
+      content: CareInsightsContent
+    },
+    {
+      id: "care-connect",
+      label: "CareConnect",
+      content: CareConnectContent
+    },
+    {
+      id: "care-wallet",
+      label: "CareWallet",
+      content: CareWalletContent
+    },
+    {
+      id: "care-tunes",
+      label: "CareTunes",
+      content: CareTunesContent
+    }
+  ], [CareScheduleContent, CareCircleContent, CareInsightsContent, CareConnectContent, CareWalletContent, CareTunesContent]);
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Caregiver Portal" navItems={navItems}>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (candidates.length === 0) {
+    return (
+      <DashboardLayout title="Caregiver Portal" navItems={navItems}>
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            No Candidates Assigned
+          </h2>
+          <p className="text-gray-600">
+            Please contact your administrator to get assigned to candidates.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout title="Caregiver Portal" navItems={navItems}>
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Welcome back, {profile?.first_name}!
+        </h1>
+        <p className="text-gray-600">Manage care for your assigned residents</p>
+      </div>
+
+      {/* Tab Container */}
+      <TabContainer tabs={tabs} defaultTab="care-schedule" />
 
       {/* Medication Reminders */}
       {notifications
