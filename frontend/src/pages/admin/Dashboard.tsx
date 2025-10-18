@@ -7,7 +7,6 @@ import StatsCards from "./components/StatsCards";
 import CandidatesList from "./components/CandidatesList";
 import CandidateForm from "./components/CandidateForm";
 import FamilyMemberForm from "./components/FamilyMemberForm";
-import CandidateInsights from "../../components/CandidateInsights";
 import MedicationCalendar from "./components/MedicationCalendar";
 import MedicationForm from "./components/MedicationForm";
 import type { DashboardStats, CandidateWithRelations } from "@care4u/shared";
@@ -22,9 +21,6 @@ const AdminDashboard = () => {
     useState<CandidateWithRelations | null>(null);
   const [selectedCandidateForFamily, setSelectedCandidateForFamily] =
     useState<string>("");
-  const [showInsights, setShowInsights] = useState(false);
-  const [insightsCandidate, setInsightsCandidate] =
-    useState<CandidateWithRelations | null>(null);
   const [showMedicationCalendar, setShowMedicationCalendar] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
   const [medicationCandidate, setMedicationCandidate] =
@@ -86,11 +82,6 @@ const AdminDashboard = () => {
     setShowFamilyForm(false);
     setSelectedCandidateForFamily("");
     toast.success("Family member registered successfully");
-  };
-
-  const handleViewInsights = (candidate: CandidateWithRelations) => {
-    setInsightsCandidate(candidate);
-    setShowInsights(true);
   };
 
   const handleAddMedication = (candidate: CandidateWithRelations) => {
@@ -174,7 +165,6 @@ const AdminDashboard = () => {
           onEdit={handleEditCandidate}
           onAddFamily={handleAddFamilyMember}
           onRefresh={fetchData}
-          onViewInsights={handleViewInsights}
           onAddMedication={handleAddMedication}
         />
       </div>
@@ -200,16 +190,6 @@ const AdminDashboard = () => {
             setSelectedCandidateForFamily("");
           }}
           onSaved={handleFamilyMemberSaved}
-        />
-      )}
-
-      {showInsights && insightsCandidate && (
-        <CandidateInsights
-          candidate={insightsCandidate}
-          onClose={() => {
-            setShowInsights(false);
-            setInsightsCandidate(null);
-          }}
         />
       )}
 
