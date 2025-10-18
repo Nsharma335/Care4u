@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Sparkles,
   RefreshCw,
+  Volume2,
 } from "lucide-react";
 import api from "../lib/api";
 import toast from "react-hot-toast";
@@ -44,6 +45,7 @@ const CandidateView = () => {
   const [aiSummary, setAiSummary] = useState<string>("");
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryGeneratedAt, setSummaryGeneratedAt] = useState<string>("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const navItems = [
     {
@@ -170,6 +172,56 @@ const CandidateView = () => {
     } finally {
       setLoadingSummary(false);
     }
+  };
+
+  // Text-to-Speech for next medication
+  const handleSpeakNextMedication = () => {
+    if (!nextMedication || !candidate) {
+      toast.error("No upcoming medication to announce");
+      return;
+    }
+
+    // Stop any ongoing speech
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+
+    const schedule = schedules.find((s) => s.id === nextMedication.schedule_id);
+    const medicineTime = format(
+      new Date(nextMedication.scheduled_time),
+      "h:mm a"
+    );
+
+    const message = `Medication reminder for ${
+      candidate.first_name
+    }. It's time to take ${schedule?.medicine_name}, ${
+      schedule?.dosage
+    }, scheduled at ${medicineTime}. ${
+      schedule?.instructions
+        ? `Special instructions: ${schedule.instructions}`
+        : ""
+    }`;
+
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      toast.success("Speaking medication reminder...");
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      toast.error("Failed to speak medication reminder");
+    };
+
+    window.speechSynthesis.speak(utterance);
   };
 
   // Calendar functions
@@ -752,6 +804,34 @@ const CandidateView = () => {
 
   return (
     <DashboardLayout title="Candidate Details" navItems={navItems}>
+      {/* Header with Speaker */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            {candidate.first_name} {candidate.last_name}
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Age: {candidate.age} • Health Insights & Medication Management
+          </p>
+        </div>
+        {nextMedication && (
+          <button
+            onClick={handleSpeakNextMedication}
+            disabled={isSpeaking}
+            className={`p-3 rounded-full transition-all shadow-sm ${
+              isSpeaking
+                ? "bg-blue-100 text-blue-600 animate-pulse"
+                : "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md"
+            } disabled:cursor-not-allowed`}
+            title="Speak next medication reminder"
+          >
+            <Volume2
+              className={`w-6 h-6 ${isSpeaking ? "animate-pulse" : ""}`}
+            />
+          </button>
+        )}
+      </div>
+
       {/* AI Summary Card */}
       <div className="mb-6">
         <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
