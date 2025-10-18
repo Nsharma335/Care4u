@@ -20,7 +20,7 @@ export class OpenAIService {
 
       if (isImage) {
         response = await openai.chat.completions.create({
-          model: 'gpt-4-vision-preview',
+          model: 'gpt-4o',
           messages: [
             {
               role: 'user',
@@ -65,7 +65,7 @@ If you cannot read the prescription clearly, return an empty array [].`
         const fileContent = fileBuffer.toString('utf-8');
         
         response = await openai.chat.completions.create({
-          model: 'gpt-4-turbo-preview',
+          model: 'gpt-4o',
           messages: [
             {
               role: 'user',
@@ -92,7 +92,6 @@ Return ONLY a valid JSON array with this exact structure:
 ]`
             }
           ],
-          temperature: 0.3
         });
       }
 
@@ -119,10 +118,9 @@ Return ONLY a valid JSON array with this exact structure:
   async chatWithAssistant(messages: Array<{ role: string; content: string }>): Promise<string> {
     try {
       const response = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o',
         messages: messages as any,
-        temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 5000
       });
 
       return response.choices[0].message.content || '';

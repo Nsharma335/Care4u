@@ -200,3 +200,9 @@ export interface UserProfile {
   last_name?: string;
 }
 
+// Candidate with related data
+export interface CandidateWithRelations extends Candidate {
+  family_members?: FamilyMember[];
+  caregivers?: FamilyMember[];
+}
+

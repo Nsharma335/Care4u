@@ -7,19 +7,22 @@ import StatsCards from "./components/StatsCards";
 import CandidatesList from "./components/CandidatesList";
 import CandidateForm from "./components/CandidateForm";
 import FamilyMemberForm from "./components/FamilyMemberForm";
-import type { DashboardStats, Candidate } from "@care4u/shared";
+import CandidateInsights from "../../components/CandidateInsights";
+import type { DashboardStats, CandidateWithRelations } from "@care4u/shared";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [candidates, setCandidates] = useState<CandidateWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCandidateForm, setShowCandidateForm] = useState(false);
   const [showFamilyForm, setShowFamilyForm] = useState(false);
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(
-    null
-  );
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<CandidateWithRelations | null>(null);
   const [selectedCandidateForFamily, setSelectedCandidateForFamily] =
     useState<string>("");
+  const [showInsights, setShowInsights] = useState(false);
+  const [insightsCandidate, setInsightsCandidate] =
+    useState<CandidateWithRelations | null>(null);
 
   const navItems = [
     {
@@ -56,7 +59,7 @@ const AdminDashboard = () => {
     setShowCandidateForm(true);
   };
 
-  const handleEditCandidate = (candidate: Candidate) => {
+  const handleEditCandidate = (candidate: CandidateWithRelations) => {
     setSelectedCandidate(candidate);
     setShowCandidateForm(true);
   };
@@ -76,6 +79,11 @@ const AdminDashboard = () => {
     setShowFamilyForm(false);
     setSelectedCandidateForFamily("");
     toast.success("Family member registered successfully");
+  };
+
+  const handleViewInsights = (candidate: CandidateWithRelations) => {
+    setInsightsCandidate(candidate);
+    setShowInsights(true);
   };
 
   if (loading) {
@@ -134,6 +142,7 @@ const AdminDashboard = () => {
           onEdit={handleEditCandidate}
           onAddFamily={handleAddFamilyMember}
           onRefresh={fetchData}
+          onViewInsights={handleViewInsights}
         />
       </div>
 
@@ -158,6 +167,16 @@ const AdminDashboard = () => {
             setSelectedCandidateForFamily("");
           }}
           onSaved={handleFamilyMemberSaved}
+        />
+      )}
+
+      {showInsights && insightsCandidate && (
+        <CandidateInsights
+          candidate={insightsCandidate}
+          onClose={() => {
+            setShowInsights(false);
+            setInsightsCandidate(null);
+          }}
         />
       )}
     </DashboardLayout>

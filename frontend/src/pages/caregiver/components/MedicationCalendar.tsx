@@ -25,48 +25,53 @@ const MedicationCalendar = ({ logs }: MedicationCalendarProps) => {
     const dayStr = format(day, "yyyy-MM-dd");
     const dayLogs = logs.filter((log) => log.scheduled_time.startsWith(dayStr));
 
-    if (dayLogs.length === 0) return { color: "bg-gray-100", rate: 0 };
+    if (dayLogs.length === 0)
+      return { color: "bg-gray-100", rate: 0, count: 0, taken: 0 };
 
     const taken = dayLogs.filter((log) => log.status === "taken").length;
     const rate = (taken / dayLogs.length) * 100;
 
-    if (rate === 100) return { color: "bg-green-500", rate };
-    if (rate >= 75) return { color: "bg-green-300", rate };
-    if (rate >= 50) return { color: "bg-yellow-300", rate };
-    if (rate > 0) return { color: "bg-orange-300", rate };
-    return { color: "bg-red-300", rate };
+    if (rate === 100)
+      return { color: "bg-green-500", rate, count: dayLogs.length, taken };
+    if (rate >= 75)
+      return { color: "bg-green-300", rate, count: dayLogs.length, taken };
+    if (rate >= 50)
+      return { color: "bg-yellow-300", rate, count: dayLogs.length, taken };
+    if (rate > 0)
+      return { color: "bg-orange-300", rate, count: dayLogs.length, taken };
+    return { color: "bg-red-300", rate, count: dayLogs.length, taken };
   };
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-secondary-50 to-primary-50">
+      <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-secondary-50 to-primary-50">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              Medication Adherence Calendar
+            <h2 className="text-lg font-semibold text-gray-900">
+              Medication Calendar
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Monthly overview of medication compliance
+            <p className="text-xs text-gray-600 mt-0.5">
+              Monthly adherence overview
             </p>
           </div>
-          <CalendarIcon className="w-8 h-8 text-secondary-600" />
+          <CalendarIcon className="w-6 h-6 text-secondary-600" />
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4">
         {/* Month Selector */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
           <button
             onClick={() =>
               setCurrentDate(
                 new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
               )
             }
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            ← Previous
+            ← Prev
           </button>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-base font-semibold text-gray-900">
             {format(currentDate, "MMMM yyyy")}
           </h3>
           <button
@@ -75,18 +80,18 @@ const MedicationCalendar = ({ logs }: MedicationCalendarProps) => {
                 new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)
               )
             }
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Next →
           </button>
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+        <div className="grid grid-cols-7 gap-1.5">
+          {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
             <div
-              key={day}
-              className="text-center text-sm font-medium text-gray-600 py-2"
+              key={`${day}-${index}`}
+              className="text-center text-xs font-semibold text-gray-500 py-1"
             >
               {day}
             </div>
@@ -104,47 +109,58 @@ const MedicationCalendar = ({ logs }: MedicationCalendarProps) => {
             return (
               <div
                 key={day.toISOString()}
-                className={`aspect-square flex flex-col items-center justify-center rounded-lg border-2 ${
-                  isCurrentDay ? "border-primary-500" : "border-transparent"
+                className={`aspect-square flex flex-col items-center justify-center rounded-md border ${
+                  isCurrentDay
+                    ? "border-primary-600 border-2"
+                    : "border-gray-200"
                 } ${
                   adherence.color
-                } hover:opacity-80 transition-opacity cursor-pointer`}
-                title={`${format(day, "MMM d")}: ${adherence.rate.toFixed(
-                  0
-                )}% adherence`}
+                } hover:opacity-80 transition-all cursor-pointer relative group`}
+                title={`${format(day, "MMM d")}: ${
+                  adherence.count > 0
+                    ? `${adherence.taken}/${
+                        adherence.count
+                      } meds (${adherence.rate.toFixed(0)}%)`
+                    : "No medications"
+                }`}
               >
                 <span
-                  className={`text-sm ${
+                  className={`text-xs ${
                     isCurrentDay ? "font-bold" : "font-medium"
-                  }`}
+                  } ${adherence.count > 0 ? "text-gray-900" : "text-gray-400"}`}
                 >
                   {format(day, "d")}
                 </span>
+                {adherence.count > 0 && (
+                  <span className="text-[10px] font-semibold mt-0.5 text-gray-700">
+                    {adherence.count}
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
 
         {/* Legend */}
-        <div className="mt-6 flex items-center justify-center space-x-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
+        <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
+          <div className="flex items-center space-x-1.5">
+            <div className="w-3 h-3 bg-green-500 rounded"></div>
             <span className="text-gray-600">100%</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-green-300 rounded"></div>
+          <div className="flex items-center space-x-1.5">
+            <div className="w-3 h-3 bg-green-300 rounded"></div>
             <span className="text-gray-600">75-99%</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-yellow-300 rounded"></div>
+          <div className="flex items-center space-x-1.5">
+            <div className="w-3 h-3 bg-yellow-300 rounded"></div>
             <span className="text-gray-600">50-74%</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-orange-300 rounded"></div>
+          <div className="flex items-center space-x-1.5">
+            <div className="w-3 h-3 bg-orange-300 rounded"></div>
             <span className="text-gray-600">1-49%</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-red-300 rounded"></div>
+          <div className="flex items-center space-x-1.5">
+            <div className="w-3 h-3 bg-red-300 rounded"></div>
             <span className="text-gray-600">0%</span>
           </div>
         </div>

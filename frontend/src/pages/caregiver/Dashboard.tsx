@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
-import { Activity, Heart } from "lucide-react";
+import { Activity, Heart, Eye } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../lib/api";
 import toast from "react-hot-toast";
@@ -9,6 +9,7 @@ import MedicationCalendar from "./components/MedicationCalendar";
 import WellnessCheck from "./components/WellnessCheck";
 import ActivityFeed from "./components/ActivityFeed";
 import MedicationReminder from "../../components/MedicationReminder";
+import CandidateInsights from "../../components/CandidateInsights";
 import type {
   Candidate,
   MedicationSchedule,
@@ -26,6 +27,7 @@ const CaregiverDashboard = () => {
   const [logs, setLogs] = useState<MedicationLog[]>([]);
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInsights, setShowInsights] = useState(false);
 
   const navItems = [
     {
@@ -133,25 +135,38 @@ const CaregiverDashboard = () => {
       </div>
 
       {/* Candidate Selector */}
-      {candidates.length > 1 && (
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Candidate
-          </label>
-          <select
-            value={selectedCandidate?.id || ""}
-            onChange={(e) => {
-              const candidate = candidates.find((c) => c.id === e.target.value);
-              setSelectedCandidate(candidate || null);
-            }}
-            className="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          >
-            {candidates.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.first_name} {candidate.last_name}
-              </option>
-            ))}
-          </select>
+      {candidates.length > 0 && (
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Candidate
+            </label>
+            <select
+              value={selectedCandidate?.id || ""}
+              onChange={(e) => {
+                const candidate = candidates.find(
+                  (c) => c.id === e.target.value
+                );
+                setSelectedCandidate(candidate || null);
+              }}
+              className="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            >
+              {candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.first_name} {candidate.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedCandidate && (
+            <button
+              onClick={() => setShowInsights(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+            >
+              <Eye className="w-5 h-5" />
+              <span>View Insights</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -188,6 +203,14 @@ const CaregiverDashboard = () => {
             onConfirm={handleMedicationConfirmed}
           />
         ))}
+
+      {/* Candidate Insights Modal */}
+      {showInsights && selectedCandidate && (
+        <CandidateInsights
+          candidate={selectedCandidate}
+          onClose={() => setShowInsights(false)}
+        />
+      )}
     </DashboardLayout>
   );
 };

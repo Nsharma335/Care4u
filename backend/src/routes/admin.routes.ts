@@ -14,19 +14,41 @@ router.get('/candidates', async (req: AuthRequest, res) => {
   try {
     const { data: admin } = await supabase
       .from('institute_admins')
-      .select('institute_id')
+      .select('id')
       .eq('user_id', req.user!.id)
       .single();
 
-    const { data, error } = await supabase
+    const { data: candidates, error } = await supabase
       .from('candidates')
       .select('*')
-      .eq('institute_id', admin?.institute_id || '')
+      .eq('institute_id', admin?.id || '')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    res.json({ candidates: data || [] });
+    // Fetch family members and caregivers for all candidates
+    const candidatesWithRelations = await Promise.all(
+      (candidates || []).map(async (candidate) => {
+        // Get all family members for this candidate
+        const { data: familyMembers } = await supabase
+          .from('family_members')
+          .select('*')
+          .eq('candidate_id', candidate.id)
+          .order('created_at', { ascending: false });
+
+        // Separate caregivers and regular family members
+        const caregivers = familyMembers?.filter(fm => fm.is_caregiver) || [];
+        const regularFamily = familyMembers?.filter(fm => !fm.is_caregiver) || [];
+
+        return {
+          ...candidate,
+          family_members: regularFamily,
+          caregivers: caregivers
+        };
+      })
+    );
+
+    res.json({ candidates: candidatesWithRelations });
   } catch (error: any) {
     console.error('Error fetching candidates:', error);
     res.status(500).json({ error: error.message });
@@ -38,15 +60,15 @@ router.post('/candidates', async (req: AuthRequest, res) => {
   try {
     const { first_name, last_name, age, institute_id }: CreateCandidateRequest = req.body;
 
-    // Get admin's institute_id if not provided
+    // Get admin's id (which serves as institute identifier) if not provided
     let finalInstituteId = institute_id;
     if (!finalInstituteId) {
       const { data: admin } = await supabase
         .from('institute_admins')
-        .select('institute_id')
+        .select('id')
         .eq('user_id', req.user!.id)
         .single();
-      finalInstituteId = admin?.institute_id;
+      finalInstituteId = admin?.id;
     }
 
     const { data, error } = await supabase
@@ -196,7 +218,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
   try {
     const { data: admin } = await supabase
       .from('institute_admins')
-      .select('institute_id')
+      .select('id')
       .eq('user_id', req.user!.id)
       .single();
 
@@ -204,7 +226,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
     const { count: totalCandidates } = await supabase
       .from('candidates')
       .select('*', { count: 'exact', head: true })
-      .eq('institute_id', admin?.institute_id || '');
+      .eq('institute_id', admin?.id || '');
 
     // Get total caregivers
     const { count: totalCaregivers } = await supabase
@@ -225,7 +247,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
       .lt('scheduled_time', `${today}T23:59:59`);
 
     const relevantLogs = todayLogs?.filter(log => 
-      (log.candidates as any).institute_id === admin?.institute_id
+      (log.candidates as any).institute_id === admin?.id
     ) || [];
 
     const missedToday = relevantLogs.filter(log => log.status === 'missed').length;
