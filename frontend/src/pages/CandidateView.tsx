@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import DashboardLayout from "../components/DashboardLayout";
 import {
-  X,
+  ArrowLeft,
   TrendingUp,
   Calendar as CalendarIcon,
   Pill,
@@ -8,8 +10,8 @@ import {
   Check,
   AlertCircle,
   Activity,
-  ArrowLeft,
-  ExternalLink,
+  Bell,
+  CheckCircle,
 } from "lucide-react";
 import api from "../lib/api";
 import toast from "react-hot-toast";
@@ -26,12 +28,10 @@ import type {
   MedicationSchedule,
 } from "@care4u/shared";
 
-interface CandidateInsightsProps {
-  candidate: Candidate;
-  onClose: () => void;
-}
-
-const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
+const CandidateView = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [logs, setLogs] = useState<MedicationLog[]>([]);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,19 +40,42 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
   >("overview");
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  const navItems = [
+    {
+      label: "Back",
+      path: "#",
+      icon: <ArrowLeft className="w-5 h-5" />,
+    },
+  ];
+
   useEffect(() => {
-    fetchData();
-  }, [candidate.id]);
+    if (id) {
+      fetchData();
+    }
+  }, [id]);
 
   const fetchData = async () => {
     try {
       const [logsRes, schedulesRes] = await Promise.all([
-        api.get(`/api/medications/logs/${candidate.id}`),
-        api.get(`/api/medications/schedule/${candidate.id}`),
+        api.get(`/api/medications/logs/${id}`),
+        api.get(`/api/medications/schedule/${id}`),
       ]);
 
       setLogs(logsRes.data.logs);
       setSchedules(schedulesRes.data.schedules);
+
+      // Get candidate info from first log or schedule
+      if (schedulesRes.data.schedules.length > 0) {
+        // We'll need to add a candidate endpoint or get it from another source
+        // For now, we'll construct a basic candidate object
+        setCandidate({
+          id: id || "",
+          first_name: "Candidate",
+          last_name: "Details",
+          age: 0,
+          created_at: new Date().toISOString(),
+        });
+      }
     } catch (error: any) {
       console.error("Error fetching candidate data:", error);
       toast.error("Failed to load candidate data");
@@ -98,6 +121,33 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
   const todayLogs = logs.filter((log) => log.scheduled_time.startsWith(today));
   const takenToday = todayLogs.filter((l) => l.status === "taken").length;
   const missedToday = todayLogs.filter((l) => l.status === "missed").length;
+
+  // Find next upcoming medication
+  const now = new Date();
+  const upcomingLogs = logs
+    .filter((log) => {
+      const logTime = new Date(log.scheduled_time);
+      return logTime > now && log.status === "pending";
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_time).getTime() -
+        new Date(b.scheduled_time).getTime()
+    );
+
+  const nextMedication = upcomingLogs[0];
+
+  // Handle marking medication as taken
+  const handleMarkAsTaken = async (logId: string) => {
+    try {
+      await api.post("/api/medications/confirm", { log_id: logId });
+      toast.success("Medication marked as taken!");
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error("Error marking medication as taken:", error);
+      toast.error("Failed to mark medication as taken");
+    }
+  };
 
   // Calendar functions
   const getAdherenceForDay = (day: Date) => {
@@ -152,6 +202,108 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
             <span className="text-3xl font-bold">{missedToday}</span>
           </div>
           <h3 className="text-sm font-semibold opacity-90">Missed Today</h3>
+        </div>
+      </div>
+
+      {/* Today's Medications */}
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+            <Clock className="w-6 h-6 text-indigo-600" />
+            <span>Today's Medications ({todayLogs.length})</span>
+          </h2>
+        </div>
+
+        <div className="p-6">
+          {todayLogs.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              No medications scheduled for today
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {todayLogs.map((log) => {
+                const schedule = schedules.find(
+                  (s) => s.id === log.schedule_id
+                );
+                return (
+                  <div
+                    key={log.id}
+                    className={`p-4 rounded-lg border-2 flex items-center justify-between ${
+                      log.status === "taken"
+                        ? "bg-green-50 border-green-200"
+                        : log.status === "missed"
+                        ? "bg-red-50 border-red-200"
+                        : log.status === "skipped"
+                        ? "bg-yellow-50 border-yellow-200"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
+                      <div
+                        className={`p-3 rounded-full ${
+                          log.status === "taken"
+                            ? "bg-green-100"
+                            : log.status === "missed"
+                            ? "bg-red-100"
+                            : log.status === "skipped"
+                            ? "bg-yellow-100"
+                            : "bg-gray-100"
+                        }`}
+                      >
+                        <Pill
+                          className={`w-5 h-5 ${
+                            log.status === "taken"
+                              ? "text-green-600"
+                              : log.status === "missed"
+                              ? "text-red-600"
+                              : log.status === "skipped"
+                              ? "text-yellow-600"
+                              : "text-gray-600"
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">
+                          {schedule?.medicine_name || "Unknown"}
+                        </h3>
+                        <div className="flex items-center space-x-3 mt-1">
+                          <span className="text-sm text-gray-600">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            {format(new Date(log.scheduled_time), "h:mm a")}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {schedule?.dosage}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          log.status === "taken"
+                            ? "bg-green-100 text-green-700"
+                            : log.status === "missed"
+                            ? "bg-red-100 text-red-700"
+                            : log.status === "skipped"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {log.status}
+                      </span>
+                    </div>
+                    {log.status === "pending" && (
+                      <button
+                        onClick={() => handleMarkAsTaken(log.id)}
+                        className="ml-4 flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Mark Taken</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -234,6 +386,9 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Medicine
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Date & Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -242,11 +397,18 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Notes
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {last7Days.slice(0, 20).map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {schedules.find((s) => s.id === log.schedule_id)
+                          ?.medicine_name || "Unknown"}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {format(new Date(log.scheduled_time), "MMM d, h:mm a")}
                       </td>
@@ -267,6 +429,17 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {log.notes || "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {log.status === "pending" && (
+                          <button
+                            onClick={() => handleMarkAsTaken(log.id)}
+                            className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>Mark Taken</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -489,97 +662,149 @@ const CandidateInsights = ({ candidate, onClose }: CandidateInsightsProps) => {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-8">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
+      <DashboardLayout title="Candidate Details" navItems={navItems}>
+        <div className="flex items-center justify-center h-screen">
+          <div className="w-16 h-16 border-8 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
         </div>
-      </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!candidate) {
+    return (
+      <DashboardLayout title="Candidate Details" navItems={navItems}>
+        <div className="flex flex-col items-center justify-center h-screen">
+          <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Candidate Not Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            The candidate you're looking for could not be found.
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl my-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-6 rounded-t-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => {
-                  window.open(`/candidate/view/${candidate.id}`, "_blank");
-                }}
-                className="flex items-center space-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-colors"
-              >
-                <ExternalLink className="w-5 h-5" />
-                <span className="text-sm font-medium">Open in New Tab</span>
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold">
+    <DashboardLayout title="Candidate Details" navItems={navItems}>
+      {/* Header */}
+      <div className="mb-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+        <div className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-8 rounded-2xl shadow-xl">
+          <h1 className="text-4xl font-bold">
             {candidate.first_name} {candidate.last_name}
           </h1>
-          <p className="text-primary-100 mt-1">
+          <p className="text-primary-100 mt-2 text-lg">
             Age: {candidate.age} • Health Insights & Medication Management
           </p>
         </div>
+      </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white border-b border-gray-200 px-6">
-          <nav className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "overview"
-                  ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab("calendar")}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "calendar"
-                  ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Calendar
-            </button>
-            <button
-              onClick={() => setActiveTab("medications")}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "medications"
-                  ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Medications
-            </button>
-          </nav>
+      {/* Next Medication Notification */}
+      {nextMedication && (
+        <div className="mb-8 animate-fadeIn">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start space-x-4 flex-1">
+                <div className="p-3 bg-white/20 rounded-full animate-pulse">
+                  <Bell className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold mb-2">
+                    Next Medication Reminder
+                  </h3>
+                  <div className="space-y-1">
+                    <p className="text-blue-50 text-lg">
+                      <span className="font-semibold">Medicine:</span>{" "}
+                      {schedules.find(
+                        (s) => s.id === nextMedication.schedule_id
+                      )?.medicine_name || "Unknown"}
+                    </p>
+                    <p className="text-blue-50">
+                      <span className="font-semibold">Time:</span>{" "}
+                      {format(
+                        new Date(nextMedication.scheduled_time),
+                        "h:mm a"
+                      )}
+                    </p>
+                    <p className="text-blue-50">
+                      <span className="font-semibold">Dosage:</span>{" "}
+                      {
+                        schedules.find(
+                          (s) => s.id === nextMedication.schedule_id
+                        )?.dosage
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => handleMarkAsTaken(nextMedication.id)}
+                className="ml-4 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2"
+              >
+                <CheckCircle className="w-5 h-5" />
+                <span>Mark as Taken</span>
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Content */}
-        <div className="p-6 max-h-[calc(100vh-280px)] overflow-y-auto">
-          {activeTab === "overview" && renderOverview()}
-          {activeTab === "calendar" && renderCalendar()}
-          {activeTab === "medications" && renderMedications()}
+      {/* Tab Navigation */}
+      <div className="mb-8 bg-white rounded-2xl shadow-md p-2">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+              activeTab === "overview"
+                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("calendar")}
+            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+              activeTab === "calendar"
+                ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Calendar
+          </button>
+          <button
+            onClick={() => setActiveTab("medications")}
+            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+              activeTab === "medications"
+                ? "bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Medications
+          </button>
         </div>
       </div>
-    </div>
+
+      {/* Content */}
+      {activeTab === "overview" && renderOverview()}
+      {activeTab === "calendar" && renderCalendar()}
+      {activeTab === "medications" && renderMedications()}
+    </DashboardLayout>
   );
 };
 
-export default CandidateInsights;
+export default CandidateView;

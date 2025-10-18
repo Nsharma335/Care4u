@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Users2,
   Heart,
+  Pill,
 } from "lucide-react";
 import type { CandidateWithRelations } from "@care4u/shared";
 import { useState } from "react";
@@ -18,6 +19,7 @@ interface CandidatesListProps {
   onAddFamily: (candidateId: string) => void;
   onRefresh: () => void;
   onViewInsights: (candidate: CandidateWithRelations) => void;
+  onAddMedication: (candidate: CandidateWithRelations) => void;
 }
 
 const CandidatesList = ({
@@ -26,6 +28,7 @@ const CandidatesList = ({
   onAddFamily,
   onRefresh,
   onViewInsights,
+  onAddMedication,
 }: CandidatesListProps) => {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -131,8 +134,21 @@ const CandidatesList = ({
                         {candidate.last_name[0]}
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {candidate.first_name} {candidate.last_name}
+                        <div className="flex items-center space-x-3">
+                          <div className="text-sm font-medium text-gray-900">
+                            {candidate.first_name} {candidate.last_name}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddMedication(candidate);
+                            }}
+                            className="flex items-center space-x-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-xs font-medium"
+                            title="Add Medicines"
+                          >
+                            <Pill className="w-3 h-3" />
+                            <span>Add Medicines</span>
+                          </button>
                         </div>
                       </div>
                     </div>

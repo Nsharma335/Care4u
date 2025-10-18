@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import CaregiverDashboard from "./pages/caregiver/Dashboard";
 import CandidateDashboard from "./pages/candidate/Dashboard";
 import FamilyDashboard from "./pages/family/Dashboard";
+import CandidateView from "./pages/CandidateView";
 import LoadingSpinner from "./components/LoadingSpinner";
 
 const ProtectedRoute = ({
@@ -120,6 +121,22 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["family_member"]}>
             <FamilyDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/candidate/view/:id"
+        element={
+          <ProtectedRoute
+            allowedRoles={[
+              "institute_admin",
+              "caregiver",
+              "family_member",
+              "candidate",
+            ]}
+          >
+            <CandidateView />
           </ProtectedRoute>
         }
       />
