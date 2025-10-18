@@ -12,6 +12,8 @@ import {
   Activity,
   Bell,
   CheckCircle,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import api from "../lib/api";
 import toast from "react-hot-toast";
@@ -39,6 +41,9 @@ const CandidateView = () => {
     "overview" | "calendar" | "medications"
   >("overview");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [aiSummary, setAiSummary] = useState<string>("");
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [summaryGeneratedAt, setSummaryGeneratedAt] = useState<string>("");
 
   const navItems = [
     {
@@ -146,6 +151,24 @@ const CandidateView = () => {
     } catch (error: any) {
       console.error("Error marking medication as taken:", error);
       toast.error("Failed to mark medication as taken");
+    }
+  };
+
+  // Generate AI summary
+  const handleGenerateSummary = async () => {
+    if (!id) return;
+
+    try {
+      setLoadingSummary(true);
+      const response = await api.post(`/api/medications/summary/${id}`);
+      setAiSummary(response.data.summary);
+      setSummaryGeneratedAt(response.data.generatedAt);
+      toast.success("Summary generated successfully!");
+    } catch (error: any) {
+      console.error("Error generating summary:", error);
+      toast.error("Failed to generate summary");
+    } finally {
+      setLoadingSummary(false);
     }
   };
 
@@ -729,33 +752,84 @@ const CandidateView = () => {
 
   return (
     <DashboardLayout title="Candidate Details" navItems={navItems}>
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Back</span>
-        </button>
-        <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {candidate.first_name} {candidate.last_name}
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Age: {candidate.age} • Health Insights & Medication Management
-          </p>
+      {/* AI Summary Card */}
+      <div className="mb-6">
+        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  AI Health Summary
+                </h3>
+                {summaryGeneratedAt && (
+                  <p className="text-xs text-gray-500">
+                    Generated{" "}
+                    {format(new Date(summaryGeneratedAt), "MMM d, h:mm a")}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleGenerateSummary}
+              disabled={loadingSummary}
+              className="flex items-center space-x-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingSummary ? (
+                <>
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3" />
+                  <span>Generate Summary</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {aiSummary ? (
+            <div className="bg-white/80 rounded-lg p-3 text-sm text-gray-700 leading-relaxed">
+              {aiSummary}
+            </div>
+          ) : (
+            <div className="bg-white/80 rounded-lg p-3 text-sm text-gray-500 text-center italic">
+              Click "Generate Summary" to get an AI-powered health overview
+              based on today's medication status
+            </div>
+          )}
         </div>
       </div>
 
       {/* Next Medication Notification */}
       {nextMedication && (
         <div className="mb-6 animate-fadeIn">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div
+            className={`border rounded-lg p-4 ${
+              nextMedication.status === "taken"
+                ? "bg-green-50 border-green-200"
+                : "bg-blue-50 border-blue-200"
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-start space-x-3 flex-1">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Bell className="w-5 h-5 text-blue-600" />
+                <div
+                  className={`p-2 rounded-lg ${
+                    nextMedication.status === "taken"
+                      ? "bg-green-100"
+                      : "bg-blue-100"
+                  }`}
+                >
+                  <Bell
+                    className={`w-5 h-5 ${
+                      nextMedication.status === "taken"
+                        ? "text-green-600"
+                        : "text-blue-600"
+                    }`}
+                  />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold text-gray-900 mb-1">
@@ -786,13 +860,20 @@ const CandidateView = () => {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => handleMarkAsTaken(nextMedication.id)}
-                className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow transition-all flex items-center space-x-2"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span>Mark as Taken</span>
-              </button>
+              {nextMedication.status === "taken" ? (
+                <div className="ml-4 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium flex items-center space-x-2">
+                  <Check className="w-4 h-4" />
+                  <span>Taken</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleMarkAsTaken(nextMedication.id)}
+                  className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow transition-all flex items-center space-x-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Mark as Taken</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

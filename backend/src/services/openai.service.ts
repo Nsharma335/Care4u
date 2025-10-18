@@ -130,6 +130,73 @@ Return ONLY a valid JSON array with this exact structure:
     }
   }
 
+  async generatePatientSummary(patientData: {
+    firstName: string;
+    lastName: string;
+    age: number;
+    todaysMedications: Array<{
+      medicineName: string;
+      dosage: string;
+      scheduledTime: string;
+      status: string;
+    }>;
+    adherenceRate7Days: number;
+    adherenceRate30Days: number;
+    missedToday: number;
+    totalToday: number;
+  }): Promise<string> {
+    try {
+      const prompt = `You are a compassionate healthcare assistant providing a brief daily medication summary for a patient.
+
+Patient Information:
+- Name: ${patientData.firstName} ${patientData.lastName}
+- Age: ${patientData.age} years
+
+Today's Medication Status:
+- Total medications scheduled: ${patientData.totalToday}
+- Medications taken: ${patientData.totalToday - patientData.missedToday}
+- Medications missed: ${patientData.missedToday}
+
+Today's Medications:
+${patientData.todaysMedications.map((med, idx) => 
+  `${idx + 1}. ${med.medicineName} (${med.dosage}) at ${med.scheduledTime} - Status: ${med.status}`
+).join('\n')}
+
+Recent Adherence:
+- 7-day adherence rate: ${patientData.adherenceRate7Days}%
+- 30-day adherence rate: ${patientData.adherenceRate30Days}%
+
+Please provide a brief, compassionate, and actionable summary (2-3 sentences) that:
+1. Acknowledges today's medication status
+2. Highlights any concerns if medications were missed
+3. Provides gentle encouragement or positive reinforcement
+4. Keeps a warm, supportive tone
+
+Keep it concise and patient-friendly.`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a compassionate healthcare assistant providing brief, supportive medication summaries for patients.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 300,
+        temperature: 0.7
+      });
+
+      return response.choices[0].message.content || 'Unable to generate summary at this time.';
+    } catch (error) {
+      console.error('Error generating patient summary:', error);
+      throw error;
+    }
+  }
+
   private getMimeType(extension: string): string {
     const mimeTypes: Record<string, string> = {
       'jpg': 'image/jpeg',

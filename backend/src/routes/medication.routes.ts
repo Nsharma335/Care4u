@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
+import { openAIService } from '../services/openai.service.js';
+import { format } from 'date-fns';
 
 const router = Router();
 
@@ -213,6 +215,89 @@ router.delete('/schedule/:id', async (req: AuthRequest, res) => {
     res.json({ message: 'Medication schedule deleted successfully' });
   } catch (error: any) {
     console.error('Error deleting medication schedule:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate patient summary
+router.post('/summary/:candidate_id', async (req: AuthRequest, res) => {
+  try {
+    const { candidate_id } = req.params;
+
+    // Get candidate info
+    const { data: candidate, error: candidateError } = await supabase
+      .from('candidates')
+      .select('*')
+      .eq('id', candidate_id)
+      .single();
+
+    if (candidateError) throw candidateError;
+
+    // Get today's medication logs
+    const today = new Date().toISOString().split('T')[0];
+    const { data: todayLogs } = await supabase
+      .from('medication_logs')
+      .select('*, medication_schedules(*)')
+      .eq('candidate_id', candidate_id)
+      .gte('scheduled_time', `${today}T00:00:00`)
+      .lt('scheduled_time', `${today}T23:59:59`)
+      .order('scheduled_time', { ascending: true });
+
+    // Calculate adherence rates
+    const last7Days = new Date();
+    last7Days.setDate(last7Days.getDate() - 7);
+    
+    const { data: logs7Days } = await supabase
+      .from('medication_logs')
+      .select('*')
+      .eq('candidate_id', candidate_id)
+      .gte('scheduled_time', last7Days.toISOString());
+
+    const last30Days = new Date();
+    last30Days.setDate(last30Days.getDate() - 30);
+    
+    const { data: logs30Days } = await supabase
+      .from('medication_logs')
+      .select('*')
+      .eq('candidate_id', candidate_id)
+      .gte('scheduled_time', last30Days.toISOString());
+
+    const adherenceRate7Days = logs7Days && logs7Days.length > 0
+      ? Math.round((logs7Days.filter(l => l.status === 'taken').length / logs7Days.length) * 100)
+      : 0;
+
+    const adherenceRate30Days = logs30Days && logs30Days.length > 0
+      ? Math.round((logs30Days.filter(l => l.status === 'taken').length / logs30Days.length) * 100)
+      : 0;
+
+    const missedToday = todayLogs?.filter(l => l.status === 'missed').length || 0;
+
+    // Prepare data for AI
+    const patientData = {
+      firstName: candidate.first_name,
+      lastName: candidate.last_name,
+      age: candidate.age,
+      todaysMedications: todayLogs?.map((log: any) => ({
+        medicineName: log.medication_schedules?.medicine_name || 'Unknown',
+        dosage: log.medication_schedules?.dosage || '',
+        scheduledTime: format(new Date(log.scheduled_time), 'h:mm a'),
+        status: log.status
+      })) || [],
+      adherenceRate7Days,
+      adherenceRate30Days,
+      missedToday,
+      totalToday: todayLogs?.length || 0
+    };
+
+    // Generate summary using OpenAI
+    const summary = await openAIService.generatePatientSummary(patientData);
+
+    res.json({ 
+      summary,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Error generating patient summary:', error);
     res.status(500).json({ error: error.message });
   }
 });
