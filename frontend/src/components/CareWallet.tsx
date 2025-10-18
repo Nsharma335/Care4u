@@ -11,6 +11,7 @@ import {
   Target,
   BarChart3
 } from "lucide-react";
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import api from "../lib/api";
 import toast from "react-hot-toast";
 import type { Donation, Institute, Candidate } from "@care4u/shared";
@@ -31,7 +32,7 @@ interface SpendingData {
     count: number;
     percentage: number;
   }>;
-  patientBreakdown: Array<{
+  candidateBreakdown: Array<{
     candidate_id: string;
     candidate_name: string;
     total_amount: number;
@@ -99,14 +100,17 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
   };
 
   const calculateSpendingData = () => {
+    const pendingDonations = donations.filter(d => d.status === 'pending');
     const completedDonations = donations.filter(d => d.status === 'completed');
-    const totalSpent = completedDonations.reduce((sum, d) => sum + d.amount, 0);
-    const totalDonations = completedDonations.length;
-    const averageDonation = totalDonations > 0 ? totalSpent / totalDonations : 0;
+    
+    const totalPending = pendingDonations.reduce((sum, d) => sum + d.amount, 0);
+    const totalCompleted = completedDonations.reduce((sum, d) => sum + d.amount, 0);
+    const totalDonations = donations.length;
+    const averageDonation = totalDonations > 0 ? (totalPending + totalCompleted) / totalDonations : 0;
 
-    // Institute breakdown
+    // Institute breakdown for pending donations
     const instituteMap = new Map();
-    completedDonations.forEach(donation => {
+    pendingDonations.forEach(donation => {
       const key = donation.institute_id;
       if (!instituteMap.has(key)) {
         instituteMap.set(key, {
@@ -125,17 +129,17 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
     const instituteBreakdown = Array.from(instituteMap.values())
       .map(entry => ({
         ...entry,
-        percentage: totalSpent > 0 ? (entry.total_amount / totalSpent) * 100 : 0
+        percentage: totalPending > 0 ? (entry.total_amount / totalPending) * 100 : 0
       }))
       .sort((a, b) => b.total_amount - a.total_amount);
 
-    // Patient breakdown (only for specific patient donations)
-    const patientDonations = completedDonations.filter(d => d.candidate_id);
-    const patientMap = new Map();
-    patientDonations.forEach(donation => {
+    // Candidate breakdown for pending donations
+    const candidateDonations = pendingDonations.filter(d => d.candidate_id);
+    const candidateMap = new Map();
+    candidateDonations.forEach(donation => {
       const key = donation.candidate_id!;
-      if (!patientMap.has(key)) {
-        patientMap.set(key, {
+      if (!candidateMap.has(key)) {
+        candidateMap.set(key, {
           candidate_id: key,
           candidate_name: donation.candidates ? 
             `${donation.candidates.first_name} ${donation.candidates.last_name}` : 
@@ -144,21 +148,21 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
           count: 0
         });
       }
-      const entry = patientMap.get(key);
+      const entry = candidateMap.get(key);
       entry.total_amount += donation.amount;
       entry.count += 1;
     });
 
-    const patientBreakdown = Array.from(patientMap.values())
+    const candidateBreakdown = Array.from(candidateMap.values())
       .map(entry => ({
         ...entry,
-        percentage: totalSpent > 0 ? (entry.total_amount / totalSpent) * 100 : 0
+        percentage: totalPending > 0 ? (entry.total_amount / totalPending) * 100 : 0
       }))
       .sort((a, b) => b.total_amount - a.total_amount);
 
-    // Monthly spending
+    // Monthly pending amounts
     const monthlyMap = new Map();
-    completedDonations.forEach(donation => {
+    pendingDonations.forEach(donation => {
       const date = new Date(donation.created_at);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -179,11 +183,11 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
       .sort((a, b) => a.month.localeCompare(b.month));
 
     setSpendingData({
-      totalSpent,
-      totalDonations,
+      totalSpent: totalPending, // Show pending amount as primary
+      totalDonations: pendingDonations.length, // Show pending count
       averageDonation,
       instituteBreakdown,
-      patientBreakdown,
+      candidateBreakdown,
       monthlySpending,
       recentDonations: donations.slice(0, 5)
     });
@@ -227,6 +231,27 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
     return colors[index % colors.length];
   };
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-900">{data.name}</p>
+          <p className="text-sm text-gray-600">
+            Amount: <span className="font-medium">${data.value.toFixed(2)}</span>
+          </p>
+          <p className="text-sm text-gray-600">
+            Percentage: <span className="font-medium">{data.percentage.toFixed(1)}%</span>
+          </p>
+          <p className="text-sm text-gray-600">
+            Donations: <span className="font-medium">{data.count}</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -259,7 +284,7 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
           </div>
         </div>
         <p className="text-gray-600">
-          Track your donations and spending patterns across institutes and patients.
+          Track your pending donations and spending patterns across institutes and candidates.
         </p>
       </div>
 
@@ -269,17 +294,17 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Spent</p>
-                <p className="text-2xl font-bold text-gray-900">${spendingData.totalSpent.toFixed(2)}</p>
+                <p className="text-sm font-medium text-gray-600">Pending Amount</p>
+                <p className="text-2xl font-bold text-yellow-600">${spendingData.totalSpent.toFixed(2)}</p>
               </div>
-              <DollarSign className="w-8 h-8 text-green-500" />
+              <DollarSign className="w-8 h-8 text-yellow-500" />
             </div>
           </div>
 
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Donations</p>
+                <p className="text-sm font-medium text-gray-600">Pending Donations</p>
                 <p className="text-2xl font-bold text-gray-900">{spendingData.totalDonations}</p>
               </div>
               <CreditCard className="w-8 h-8 text-blue-500" />
@@ -289,7 +314,7 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Average Donation</p>
+                <p className="text-sm font-medium text-gray-600">Average Pending</p>
                 <p className="text-2xl font-bold text-gray-900">${spendingData.averageDonation.toFixed(2)}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-purple-500" />
@@ -299,7 +324,7 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Institutes Supported</p>
+                <p className="text-sm font-medium text-gray-600">Institutes Pending</p>
                 <p className="text-2xl font-bold text-gray-900">{spendingData.instituteBreakdown.length}</p>
               </div>
               <Building2 className="w-8 h-8 text-orange-500" />
@@ -310,107 +335,118 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
 
       {/* Charts Row */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Institute Spending Pie Chart */}
+        {/* Institute Pending Amounts */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <PieChart className="w-5 h-5 mr-2 text-primary-600" />
-            Spending by Institute
+            Pending Amounts by Institute
           </h3>
           
           {spendingData && spendingData.instituteBreakdown.length > 0 ? (
-            <div className="space-y-4">
-              {/* Simple Bar Chart Representation */}
-              <div className="space-y-3">
-                {spendingData.instituteBreakdown.map((institute, index) => (
-                  <div key={institute.institute_id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {getInstituteIcon(institute.institute_type)}
-                        <span className="font-medium text-gray-900">{institute.institute_name}</span>
-                        <span className="text-sm text-gray-500">({institute.count} donations)</span>
-                      </div>
-                      <span className="font-semibold text-gray-900">${institute.total_amount.toFixed(2)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${institute.percentage}%`,
-                          backgroundColor: getPieChartColor(index)
-                        }}
-                      ></div>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {institute.percentage.toFixed(1)}% of total spending
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={spendingData.instituteBreakdown.map((institute, index) => ({
+                      name: institute.institute_name,
+                      value: institute.total_amount,
+                      percentage: institute.percentage,
+                      count: institute.count,
+                      type: institute.institute_type
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {spendingData.instituteBreakdown.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={getPieChartColor(index)} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value, entry) => (
+                      <span style={{ color: entry.color, fontSize: '12px' }}>
+                        {value}
+                      </span>
+                    )}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
               <PieChart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No spending data available for the selected period</p>
+              <p className="text-lg font-medium mb-2">No pending donations</p>
+              <p className="text-sm">for the selected period</p>
             </div>
           )}
         </div>
 
-        {/* Patient Spending */}
+        {/* Candidate Pending Amounts */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Users className="w-5 h-5 mr-2 text-primary-600" />
-            Spending by Patient
+            Pending Amounts by Candidate
           </h3>
           
-          {spendingData && spendingData.patientBreakdown.length > 0 ? (
-            <div className="space-y-3">
-              {spendingData.patientBreakdown.map((patient, index) => (
-                <div key={patient.candidate_id} className="space-y-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-full">
-                        <Users className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <span className="font-semibold text-gray-900 text-lg">{patient.candidate_name}</span>
-                        <p className="text-sm text-gray-600">Patient-specific donations</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-bold text-xl text-gray-900">${patient.total_amount.toFixed(2)}</span>
-                      <p className="text-sm text-gray-500">({patient.count} donations)</p>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="h-3 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${patient.percentage}%`,
-                        backgroundColor: getPieChartColor(index)
-                      }}
-                    ></div>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {patient.percentage.toFixed(1)}% of total patient-specific spending
-                  </div>
-                </div>
-              ))}
+          {spendingData && spendingData.candidateBreakdown.length > 0 ? (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={spendingData.candidateBreakdown.map((candidate, index) => ({
+                      name: candidate.candidate_name,
+                      value: candidate.total_amount,
+                      percentage: candidate.percentage,
+                      count: candidate.count
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {spendingData.candidateBreakdown.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={getPieChartColor(index)} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value, entry) => (
+                      <span style={{ color: entry.color, fontSize: '12px' }}>
+                        {value}
+                      </span>
+                    )}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No patient-specific donations in this period</p>
+              <p className="text-lg font-medium mb-2">No pending candidate donations</p>
+              <p className="text-sm">in this period</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Monthly Spending Trend */}
+      {/* Monthly Pending Trend */}
       {spendingData && spendingData.monthlySpending.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <BarChart3 className="w-5 h-5 mr-2 text-primary-600" />
-            Monthly Spending Trend
+            Monthly Pending Amounts
           </h3>
           
           <div className="space-y-4">
@@ -487,7 +523,8 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
         ) : (
           <div className="text-center py-8 text-gray-500">
             <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No donations found for the selected period</p>
+            <p className="text-lg font-medium mb-2">No donations found</p>
+            <p className="text-sm">for the selected period</p>
           </div>
         )}
       </div>

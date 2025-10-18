@@ -11,7 +11,7 @@ import WellnessCheck from "./components/WellnessCheck";
 import ActivityFeed from "./components/ActivityFeed";
 import MedicationReminder from "../../components/MedicationReminder";
 import CandidateInsights from "../../components/CandidateInsights";
-import PatientProfile from "../../components/PatientProfile";
+import CandidateProfile from "../../components/CandidateProfile";
 import CareInsights from "../../components/CareInsights";
 import CareConnect from "../../components/CareConnect";
 import CareWallet from "../../components/CareWallet";
@@ -169,18 +169,18 @@ const CaregiverDashboard = () => {
 
   const CareCircleContent = useMemo(() => (
     <div className="space-y-6">
-      {/* Patient Selector */}
+      {/* Candidate Selector */}
       {candidates.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
               <Users className="w-5 h-5 mr-2 text-primary-600" />
-              Patient Profile
+              Candidate Profile
             </h3>
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Patient
+              Select Candidate
             </label>
             <select
               value={selectedCandidate?.id || ""}
@@ -202,9 +202,9 @@ const CaregiverDashboard = () => {
         </div>
       )}
 
-      {/* Patient Profile */}
+      {/* Candidate Profile */}
       {selectedCandidate ? (
-        <PatientProfile 
+        <CandidateProfile 
           candidate={selectedCandidate}
           schedules={schedules}
           logs={logs}
@@ -213,8 +213,8 @@ const CaregiverDashboard = () => {
         <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
           <div className="text-center">
             <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Patient Selected</h3>
-            <p className="text-gray-500">Please select a patient to view their profile</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Candidate Selected</h3>
+            <p className="text-gray-500">Please select a candidate to view their profile</p>
           </div>
         </div>
       )}
@@ -223,7 +223,7 @@ const CaregiverDashboard = () => {
 
   const CareInsightsContent = useMemo(() => (
     <div className="space-y-6">
-      {/* Patient Selector */}
+      {/* Candidate Selector */}
       {candidates.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6">
           <div className="flex items-center justify-between mb-4">
@@ -234,7 +234,7 @@ const CaregiverDashboard = () => {
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Patient
+              Select Candidate
             </label>
             <select
               value={selectedCandidate?.id || ""}
@@ -267,8 +267,8 @@ const CaregiverDashboard = () => {
         <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
           <div className="text-center">
             <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Patient Selected</h3>
-            <p className="text-gray-500">Please select a patient to view their care insights</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Candidate Selected</h3>
+            <p className="text-gray-500">Please select a candidate to view their care insights</p>
           </div>
         </div>
       )}

@@ -223,7 +223,7 @@ export interface Donation {
   candidate_id?: string;
   amount: number;
   currency: string;
-  donation_type: 'general' | 'specific_patient';
+  donation_type: 'general' | 'specific_candidate';
   message?: string;
   status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
   payment_method?: string;
@@ -244,7 +244,7 @@ export interface CreateDonationRequest {
   candidate_id?: string;
   amount: number;
   currency?: string;
-  donation_type: 'general' | 'specific_patient';
+  donation_type: 'general' | 'specific_candidate';
   message?: string;
   payment_method?: string;
 }

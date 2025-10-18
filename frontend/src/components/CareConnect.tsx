@@ -16,7 +16,7 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
   const [loading, setLoading] = useState(true);
   const [donating, setDonating] = useState(false);
   const [showDonationForm, setShowDonationForm] = useState(false);
-  const [donationType, setDonationType] = useState<'general' | 'specific_patient'>('general');
+  const [donationType, setDonationType] = useState<'general' | 'specific_candidate'>('general');
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [donationAmount, setDonationAmount] = useState('');
   const [donationMessage, setDonationMessage] = useState('');
@@ -70,8 +70,8 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
       return;
     }
 
-    if (donationType === 'specific_patient' && !selectedCandidate) {
-      toast.error("Please select a patient for specific donation");
+    if (donationType === 'specific_candidate' && !selectedCandidate) {
+      toast.error("Please select a candidate for specific donation");
       return;
     }
 
@@ -86,7 +86,7 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
     try {
       const donationData: CreateDonationRequest = {
         institute_id: selectedInstitute.id,
-        candidate_id: donationType === 'specific_patient' ? selectedCandidate?.id : undefined,
+        candidate_id: donationType === 'specific_candidate' ? selectedCandidate?.id : undefined,
         amount,
         currency: 'USD',
         donation_type: donationType,
@@ -167,7 +167,7 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
           </button>
         </div>
         <p className="text-gray-600">
-          Connect with institutes and non-profit organizations to support care initiatives and specific patients.
+          Connect with institutes and non-profit organizations to support care initiatives and specific candidates.
         </p>
       </div>
 
@@ -228,7 +228,7 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
             <Users className="w-6 h-6 mr-2 text-primary-600" />
-            Patients at {selectedInstitute.name}
+            Candidates at {selectedInstitute.name}
           </h3>
           
           {instituteCandidates.length > 0 ? (
@@ -260,7 +260,7 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
           ) : (
             <div className="text-center py-8 text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No patients found for this institute</p>
+              <p>No candidates found for this institute</p>
             </div>
           )}
         </div>
@@ -297,9 +297,9 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
                         <User className="w-4 h-4 text-blue-600 mr-2" />
                         <div>
                           <p className="font-medium text-blue-900">
-                            Patient: {donation.candidates.first_name} {donation.candidates.last_name}
+                            Candidate: {donation.candidates.first_name} {donation.candidates.last_name}
                           </p>
-                          <p className="text-xs text-blue-700">Specific patient donation</p>
+                          <p className="text-xs text-blue-700">Specific candidate donation</p>
                         </div>
                       </div>
                     )}
@@ -377,21 +377,21 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
                   <label className="flex items-center">
                     <input
                       type="radio"
-                      value="specific_patient"
-                      checked={donationType === 'specific_patient'}
-                      onChange={(e) => setDonationType(e.target.value as 'specific_patient')}
+                      value="specific_candidate"
+                      checked={donationType === 'specific_candidate'}
+                      onChange={(e) => setDonationType(e.target.value as 'specific_candidate')}
                       className="mr-2"
                     />
-                    Donation for specific patient
+                    Donation for specific candidate
                   </label>
                 </div>
               </div>
 
-              {/* Patient Selection (if specific patient) */}
-              {donationType === 'specific_patient' && selectedInstitute && (
+              {/* Candidate Selection (if specific candidate) */}
+              {donationType === 'specific_candidate' && selectedInstitute && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Patient
+                    Select Candidate
                   </label>
                   <select
                     value={selectedCandidate?.id || ''}
@@ -402,7 +402,7 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   >
-                    <option value="">Select a patient</option>
+                    <option value="">Select a candidate</option>
                     {instituteCandidates.map((candidate) => (
                       <option key={candidate.id} value={candidate.id}>
                         {candidate.first_name} {candidate.last_name} (Age: {candidate.age})
@@ -410,14 +410,14 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
                     ))}
                   </select>
                   
-                  {/* Selected Patient Display */}
+                  {/* Selected Candidate Display */}
                   {selectedCandidate && (
                     <div className="mt-3 p-3 bg-primary-50 border border-primary-200 rounded-lg">
                       <div className="flex items-center">
                         <User className="w-5 h-5 text-primary-600 mr-2" />
                         <div>
                           <p className="font-medium text-primary-900">
-                            Selected Patient: {selectedCandidate.first_name} {selectedCandidate.last_name}
+                            Selected Candidate: {selectedCandidate.first_name} {selectedCandidate.last_name}
                           </p>
                           <p className="text-sm text-primary-700">Age: {selectedCandidate.age}</p>
                         </div>

@@ -732,8 +732,8 @@ router.get('/donations/spending/institute', async (req: AuthRequest, res) => {
   }
 });
 
-// Get spending analytics by patient
-router.get('/donations/spending/patient', async (req: AuthRequest, res) => {
+// Get spending analytics by candidate
+router.get('/donations/spending/candidate', async (req: AuthRequest, res) => {
   try {
     const { data: admin } = await supabase
       .from('institute_admins')
@@ -764,25 +764,25 @@ router.get('/donations/spending/patient', async (req: AuthRequest, res) => {
 
     if (error) throw error;
 
-    // Calculate patient breakdown (only for specific patient donations)
-    const patientDonations = (donations || []).filter(d => d.candidate_id);
-    const patientMap = new Map();
+    // Calculate candidate breakdown (only for specific candidate donations)
+    const candidateDonations = (donations || []).filter(d => d.candidate_id);
+    const candidateMap = new Map();
     
-    patientDonations.forEach(donation => {
+    candidateDonations.forEach(donation => {
       const key = donation.candidate_id!;
-      if (!patientMap.has(key)) {
-        patientMap.set(key, {
+      if (!candidateMap.has(key)) {
+        candidateMap.set(key, {
           candidate_id: key,
           candidate_name: donation.candidates ? 
             `${donation.candidates.first_name} ${donation.candidates.last_name}` : 
-            'Unknown Patient',
+            'Unknown Candidate',
           total_amount: 0,
           count: 0,
           pending_amount: 0,
           approved_amount: 0
         });
       }
-      const entry = patientMap.get(key);
+      const entry = candidateMap.get(key);
       entry.total_amount += donation.amount;
       entry.count += 1;
       
@@ -793,16 +793,16 @@ router.get('/donations/spending/patient', async (req: AuthRequest, res) => {
       }
     });
 
-    const patientBreakdown = Array.from(patientMap.values())
+    const candidateBreakdown = Array.from(candidateMap.values())
       .map(entry => ({
         ...entry,
         percentage: entry.total_amount > 0 ? (entry.total_amount / entry.total_amount) * 100 : 0
       }))
       .sort((a, b) => b.total_amount - a.total_amount);
 
-    res.json({ patient_breakdown: patientBreakdown });
+    res.json({ candidate_breakdown: candidateBreakdown });
   } catch (error: any) {
-    console.error('Error fetching patient spending analytics:', error);
+    console.error('Error fetching candidate spending analytics:', error);
     res.status(500).json({ error: error.message });
   }
 });

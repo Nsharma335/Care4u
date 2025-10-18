@@ -19,7 +19,7 @@ interface InstituteBreakdown {
   percentage: number;
 }
 
-interface PatientBreakdown {
+interface CandidateBreakdown {
   candidate_id: string;
   candidate_name: string;
   total_amount: number;
@@ -33,7 +33,7 @@ const DonationsManagement = ({ onClose }: DonationsManagementProps) => {
   const [donations, setDonations] = useState<Donation[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [instituteBreakdown, setInstituteBreakdown] = useState<InstituteBreakdown[]>([]);
-  const [patientBreakdown, setPatientBreakdown] = useState<PatientBreakdown[]>([]);
+  const [candidateBreakdown, setCandidateBreakdown] = useState<CandidateBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -69,12 +69,12 @@ const DonationsManagement = ({ onClose }: DonationsManagementProps) => {
 
   const fetchSpendingAnalytics = async () => {
     try {
-      const [instituteRes, patientRes] = await Promise.all([
+      const [instituteRes, candidateRes] = await Promise.all([
         api.get("/api/admin/donations/spending/institute"),
-        api.get("/api/admin/donations/spending/patient")
+        api.get("/api/admin/donations/spending/candidate")
       ]);
       setInstituteBreakdown(instituteRes.data.institute_breakdown || []);
-      setPatientBreakdown(patientRes.data.patient_breakdown || []);
+      setCandidateBreakdown(candidateRes.data.candidate_breakdown || []);
     } catch (error: any) {
       console.error("Error fetching spending analytics:", error);
     }
@@ -313,11 +313,11 @@ const DonationsManagement = ({ onClose }: DonationsManagementProps) => {
                               <div className="flex items-center p-2 bg-blue-50 border border-blue-200 rounded-lg">
                                 <User className="w-4 h-4 text-blue-600 mr-2" />
                                 <div>
-                                  <span className="font-medium text-blue-900">Patient:</span> 
+                                  <span className="font-medium text-blue-900">Candidate:</span> 
                                   <span className="ml-1 text-blue-800">
                                     {donation.candidates.first_name} {donation.candidates.last_name}
                                   </span>
-                                  <p className="text-xs text-blue-700">Specific patient donation</p>
+                                  <p className="text-xs text-blue-700">Specific candidate donation</p>
                                 </div>
                               </div>
                             )}
@@ -434,32 +434,32 @@ const DonationsManagement = ({ onClose }: DonationsManagementProps) => {
                 )}
               </div>
 
-              {/* Spending by Patient */}
+              {/* Spending by Candidate */}
               <div>
                 <div className="flex items-center mb-4">
                   <User className="w-5 h-5 text-primary-600 mr-2" />
-                  <h3 className="text-lg font-semibold text-gray-900">Spending by Patient</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Spending by Candidate</h3>
                 </div>
                 
-                {patientBreakdown.length === 0 ? (
+                {candidateBreakdown.length === 0 ? (
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
                     <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No patient-specific donations available</p>
+                    <p className="text-gray-500">No candidate-specific donations available</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {patientBreakdown.map((patient) => (
-                      <div key={patient.candidate_id} className="border border-gray-200 rounded-lg p-4">
+                    {candidateBreakdown.map((candidate) => (
+                      <div key={candidate.candidate_id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
                           <div>
-                            <h4 className="font-medium text-gray-900">{patient.candidate_name}</h4>
-                            <p className="text-sm text-gray-600">Patient ID: {patient.candidate_id}</p>
+                            <h4 className="font-medium text-gray-900">{candidate.candidate_name}</h4>
+                            <p className="text-sm text-gray-600">Candidate ID: {candidate.candidate_id}</p>
                           </div>
                           <div className="text-right">
                             <div className="text-lg font-semibold text-gray-900">
-                              ${patient.total_amount.toFixed(2)}
+                              ${candidate.total_amount.toFixed(2)}
                             </div>
-                            <div className="text-sm text-gray-600">{patient.count} donations</div>
+                            <div className="text-sm text-gray-600">{candidate.count} donations</div>
                           </div>
                         </div>
                         
@@ -467,13 +467,13 @@ const DonationsManagement = ({ onClose }: DonationsManagementProps) => {
                           <div className="flex items-center space-x-2">
                             <Clock className="w-4 h-4 text-yellow-500" />
                             <span className="text-yellow-700">
-                              Pending: ${patient.pending_amount.toFixed(2)}
+                              Pending: ${candidate.pending_amount.toFixed(2)}
                             </span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span className="text-green-700">
-                              Approved: ${patient.approved_amount.toFixed(2)}
+                              Approved: ${candidate.approved_amount.toFixed(2)}
                             </span>
                           </div>
                         </div>

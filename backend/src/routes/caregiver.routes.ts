@@ -220,9 +220,9 @@ router.post('/donations', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Amount must be greater than 0' });
     }
 
-    // If specific patient donation, validate candidate_id
-    if (donation_type === 'specific_patient' && !candidate_id) {
-      return res.status(400).json({ error: 'Candidate ID required for specific patient donation' });
+    // If specific candidate donation, validate candidate_id
+    if (donation_type === 'specific_candidate' && !candidate_id) {
+      return res.status(400).json({ error: 'Candidate ID required for specific candidate donation' });
     }
 
     const { data, error } = await supabase
@@ -230,7 +230,7 @@ router.post('/donations', async (req: AuthRequest, res) => {
       .insert({
         donor_id: req.user!.id,
         institute_id,
-        candidate_id: donation_type === 'specific_patient' ? candidate_id : null,
+        candidate_id: donation_type === 'specific_candidate' ? candidate_id : null,
         amount,
         currency,
         donation_type,

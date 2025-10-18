@@ -147,7 +147,7 @@ const CandidateProfile = ({ candidate, schedules, logs }: CandidateProfileProps)
 
   return (
     <div className="space-y-6">
-      {/* Patient Header */}
+      {/* Candidate Header */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex items-start space-x-4">
           <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">

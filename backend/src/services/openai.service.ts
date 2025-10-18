@@ -130,7 +130,7 @@ Return ONLY a valid JSON array with this exact structure:
     }
   }
 
-  async generatePatientSummary(patientData: {
+  async generateCandidateSummary(candidateData: {
     firstName: string;
     lastName: string;
     age: number;
@@ -146,25 +146,25 @@ Return ONLY a valid JSON array with this exact structure:
     totalToday: number;
   }): Promise<string> {
     try {
-      const prompt = `You are a compassionate healthcare assistant providing a brief daily medication summary for a patient.
+      const prompt = `You are a compassionate healthcare assistant providing a brief daily medication summary for a candidate.
 
-Patient Information:
-- Name: ${patientData.firstName} ${patientData.lastName}
-- Age: ${patientData.age} years
+Candidate Information:
+- Name: ${candidateData.firstName} ${candidateData.lastName}
+- Age: ${candidateData.age} years
 
 Today's Medication Status:
-- Total medications scheduled: ${patientData.totalToday}
-- Medications taken: ${patientData.totalToday - patientData.missedToday}
-- Medications missed: ${patientData.missedToday}
+- Total medications scheduled: ${candidateData.totalToday}
+- Medications taken: ${candidateData.totalToday - candidateData.missedToday}
+- Medications missed: ${candidateData.missedToday}
 
 Today's Medications:
-${patientData.todaysMedications.map((med, idx) => 
+${candidateData.todaysMedications.map((med, idx) => 
   `${idx + 1}. ${med.medicineName} (${med.dosage}) at ${med.scheduledTime} - Status: ${med.status}`
 ).join('\n')}
 
 Recent Adherence:
-- 7-day adherence rate: ${patientData.adherenceRate7Days}%
-- 30-day adherence rate: ${patientData.adherenceRate30Days}%
+- 7-day adherence rate: ${candidateData.adherenceRate7Days}%
+- 30-day adherence rate: ${candidateData.adherenceRate30Days}%
 
 Please provide a brief, compassionate, and actionable summary (2-3 sentences) that:
 1. Acknowledges today's medication status
@@ -172,14 +172,14 @@ Please provide a brief, compassionate, and actionable summary (2-3 sentences) th
 3. Provides gentle encouragement or positive reinforcement
 4. Keeps a warm, supportive tone
 
-Keep it concise and patient-friendly.`;
+Keep it concise and candidate-friendly.`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: 'You are a compassionate healthcare assistant providing brief, supportive medication summaries for patients.'
+            content: 'You are a compassionate healthcare assistant providing brief, supportive medication summaries for candidates.'
           },
           {
             role: 'user',
@@ -192,7 +192,7 @@ Keep it concise and patient-friendly.`;
 
       return response.choices[0].message.content || 'Unable to generate summary at this time.';
     } catch (error) {
-      console.error('Error generating patient summary:', error);
+      console.error('Error generating candidate summary:', error);
       throw error;
     }
   }

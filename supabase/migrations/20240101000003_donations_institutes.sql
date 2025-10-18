@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS donations (
   candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
   amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL DEFAULT 'USD',
-  donation_type TEXT NOT NULL CHECK (donation_type IN ('general', 'specific_patient')),
+  donation_type TEXT NOT NULL CHECK (donation_type IN ('general', 'specific_candidate')),
   message TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'cancelled', 'approved', 'rejected')),
   payment_method TEXT,
@@ -83,7 +83,7 @@ CREATE POLICY "Admins can update donations for their institute" ON donations
 
 -- Insert some sample institutes for testing
 INSERT INTO institutes (id, name, description, type, address, phone, email, is_active) VALUES
-  ('550e8400-e29b-41d4-a716-446655440001', 'Sunrise Care Center', 'A comprehensive care facility for elderly patients', 'institute', '123 Main St, City, State', '+1-555-0123', 'info@sunrisecare.com', TRUE),
+  ('550e8400-e29b-41d4-a716-446655440001', 'Sunrise Care Center', 'A comprehensive care facility for elderly candidates', 'institute', '123 Main St, City, State', '+1-555-0123', 'info@sunrisecare.com', TRUE),
   ('550e8400-e29b-41d4-a716-446655440002', 'Hope Medical Foundation', 'Non-profit organization providing medical care', 'non_profit', '456 Health Ave, City, State', '+1-555-0456', 'contact@hopemedical.org', TRUE),
   ('550e8400-e29b-41d4-a716-446655440003', 'Community Health Clinic', 'Local clinic serving the community', 'clinic', '789 Community Blvd, City, State', '+1-555-0789', 'hello@communityhealth.org', TRUE)
 ON CONFLICT (id) DO NOTHING;

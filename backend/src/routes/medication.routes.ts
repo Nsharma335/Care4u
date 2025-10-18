@@ -219,7 +219,7 @@ router.delete('/schedule/:id', async (req: AuthRequest, res) => {
   }
 });
 
-// Generate patient summary
+// Generate candidate summary
 router.post('/summary/:candidate_id', async (req: AuthRequest, res) => {
   try {
     const { candidate_id } = req.params;
@@ -273,7 +273,7 @@ router.post('/summary/:candidate_id', async (req: AuthRequest, res) => {
     const missedToday = todayLogs?.filter(l => l.status === 'missed').length || 0;
 
     // Prepare data for AI
-    const patientData = {
+    const candidateData = {
       firstName: candidate.first_name,
       lastName: candidate.last_name,
       age: candidate.age,
@@ -290,14 +290,14 @@ router.post('/summary/:candidate_id', async (req: AuthRequest, res) => {
     };
 
     // Generate summary using OpenAI
-    const summary = await openAIService.generatePatientSummary(patientData);
+    const summary = await openAIService.generateCandidateSummary(candidateData);
 
     res.json({ 
       summary,
       generatedAt: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error generating patient summary:', error);
+    console.error('Error generating candidate summary:', error);
     res.status(500).json({ error: error.message });
   }
 });
