@@ -12,6 +12,8 @@ import {
   Activity,
   Bell,
   CheckCircle,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import api from "../lib/api";
 import toast from "react-hot-toast";
@@ -39,6 +41,9 @@ const CandidateView = () => {
     "overview" | "calendar" | "medications"
   >("overview");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [aiSummary, setAiSummary] = useState<string>("");
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [summaryGeneratedAt, setSummaryGeneratedAt] = useState<string>("");
 
   const navItems = [
     {
@@ -149,78 +154,114 @@ const CandidateView = () => {
     }
   };
 
+  // Generate AI summary
+  const handleGenerateSummary = async () => {
+    if (!id) return;
+
+    try {
+      setLoadingSummary(true);
+      const response = await api.post(`/api/medications/summary/${id}`);
+      setAiSummary(response.data.summary);
+      setSummaryGeneratedAt(response.data.generatedAt);
+      toast.success("Summary generated successfully!");
+    } catch (error: any) {
+      console.error("Error generating summary:", error);
+      toast.error("Failed to generate summary");
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
   // Calendar functions
   const getAdherenceForDay = (day: Date) => {
     const dayStr = format(day, "yyyy-MM-dd");
     const dayLogs = logs.filter((log) => log.scheduled_time.startsWith(dayStr));
 
-    if (dayLogs.length === 0) return { color: "bg-gray-100", rate: 0 };
+    if (dayLogs.length === 0) return { color: "bg-gray-50", rate: 0 };
 
     const taken = dayLogs.filter((log) => log.status === "taken").length;
     const rate = (taken / dayLogs.length) * 100;
 
-    if (rate === 100) return { color: "bg-green-500", rate };
-    if (rate >= 75) return { color: "bg-green-300", rate };
-    if (rate >= 50) return { color: "bg-yellow-300", rate };
-    if (rate > 0) return { color: "bg-orange-300", rate };
-    return { color: "bg-red-300", rate };
+    if (rate === 100) return { color: "bg-green-50", rate };
+    if (rate >= 75) return { color: "bg-green-50", rate };
+    if (rate >= 50) return { color: "bg-yellow-50", rate };
+    if (rate > 0) return { color: "bg-orange-50", rate };
+    return { color: "bg-red-50", rate };
+  };
+
+  const getMedicationsForDay = (day: Date) => {
+    const dayStr = format(day, "yyyy-MM-dd");
+    const dayLogs = logs.filter((log) => log.scheduled_time.startsWith(dayStr));
+
+    return dayLogs.map((log) => ({
+      ...log,
+      schedule: schedules.find((s) => s.id === log.schedule_id),
+    }));
   };
 
   const renderOverview = () => (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{adherenceRate7Days}%</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-1">
+            <TrendingUp className="w-5 h-5 text-gray-400" />
+            <span className="text-2xl font-semibold text-gray-900">
+              {adherenceRate7Days}%
+            </span>
           </div>
-          <h3 className="text-sm font-semibold opacity-90">7-Day Adherence</h3>
+          <h3 className="text-xs font-medium text-gray-600">7-Day Adherence</h3>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <CalendarIcon className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{adherenceRate30Days}%</span>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-1">
+            <CalendarIcon className="w-5 h-5 text-gray-400" />
+            <span className="text-2xl font-semibold text-gray-900">
+              {adherenceRate30Days}%
+            </span>
           </div>
-          <h3 className="text-sm font-semibold opacity-90">30-Day Adherence</h3>
+          <h3 className="text-xs font-medium text-gray-600">
+            30-Day Adherence
+          </h3>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <Check className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-1">
+            <Check className="w-5 h-5 text-gray-400" />
+            <span className="text-2xl font-semibold text-gray-900">
               {takenToday}/{todayLogs.length}
             </span>
           </div>
-          <h3 className="text-sm font-semibold opacity-90">Today's Taken</h3>
+          <h3 className="text-xs font-medium text-gray-600">Today's Taken</h3>
         </div>
 
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <AlertCircle className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{missedToday}</span>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-1">
+            <AlertCircle className="w-5 h-5 text-gray-400" />
+            <span className="text-2xl font-semibold text-gray-900">
+              {missedToday}
+            </span>
           </div>
-          <h3 className="text-sm font-semibold opacity-90">Missed Today</h3>
+          <h3 className="text-xs font-medium text-gray-600">Missed Today</h3>
         </div>
       </div>
 
       {/* Today's Medications */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-            <Clock className="w-6 h-6 text-indigo-600" />
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 flex items-center space-x-2">
+            <Clock className="w-5 h-5 text-gray-600" />
             <span>Today's Medications ({todayLogs.length})</span>
           </h2>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {todayLogs.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
+            <p className="text-gray-500 text-center text-sm py-6">
               No medications scheduled for today
             </p>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               {todayLogs.map((log) => {
                 const schedule = schedules.find(
                   (s) => s.id === log.schedule_id
@@ -228,7 +269,7 @@ const CandidateView = () => {
                 return (
                   <div
                     key={log.id}
-                    className={`p-4 rounded-lg border-2 flex items-center justify-between ${
+                    className={`p-3 rounded-lg border flex items-center justify-between ${
                       log.status === "taken"
                         ? "bg-green-50 border-green-200"
                         : log.status === "missed"
@@ -238,9 +279,9 @@ const CandidateView = () => {
                         : "bg-gray-50 border-gray-200"
                     }`}
                   >
-                    <div className="flex items-center space-x-4 flex-1">
+                    <div className="flex items-center space-x-3 flex-1">
                       <div
-                        className={`p-3 rounded-full ${
+                        className={`p-2 rounded-lg ${
                           log.status === "taken"
                             ? "bg-green-100"
                             : log.status === "missed"
@@ -251,7 +292,7 @@ const CandidateView = () => {
                         }`}
                       >
                         <Pill
-                          className={`w-5 h-5 ${
+                          className={`w-4 h-4 ${
                             log.status === "taken"
                               ? "text-green-600"
                               : log.status === "missed"
@@ -263,21 +304,21 @@ const CandidateView = () => {
                         />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="text-sm font-semibold text-gray-900">
                           {schedule?.medicine_name || "Unknown"}
                         </h3>
-                        <div className="flex items-center space-x-3 mt-1">
-                          <span className="text-sm text-gray-600">
+                        <div className="flex items-center space-x-2 mt-0.5">
+                          <span className="text-xs text-gray-600">
                             <Clock className="w-3 h-3 inline mr-1" />
                             {format(new Date(log.scheduled_time), "h:mm a")}
                           </span>
-                          <span className="text-sm text-gray-600">
+                          <span className="text-xs text-gray-600">
                             {schedule?.dosage}
                           </span>
                         </div>
                       </div>
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
                           log.status === "taken"
                             ? "bg-green-100 text-green-700"
                             : log.status === "missed"
@@ -293,9 +334,9 @@ const CandidateView = () => {
                     {log.status === "pending" && (
                       <button
                         onClick={() => handleMarkAsTaken(log.id)}
-                        className="ml-4 flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                        className="ml-3 flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors"
                       >
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle className="w-3 h-3" />
                         <span>Mark Taken</span>
                       </button>
                     )}
@@ -308,45 +349,45 @@ const CandidateView = () => {
       </div>
 
       {/* Active Medications */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-            <Pill className="w-6 h-6 text-blue-600" />
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 flex items-center space-x-2">
+            <Pill className="w-5 h-5 text-gray-600" />
             <span>Active Medications ({schedules.length})</span>
           </h2>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {schedules.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
+            <p className="text-gray-500 text-center text-sm py-6">
               No active medications
             </p>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               {schedules.map((schedule) => (
                 <div
                   key={schedule.id}
-                  className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                  className="p-3 bg-gray-50 rounded-lg border border-gray-200"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="text-sm font-semibold text-gray-900">
                         {schedule.medicine_name}
                       </h3>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600 mt-1">
                         <span className="font-medium">Dosage:</span>{" "}
                         {schedule.dosage} •{" "}
                         <span className="font-medium">Frequency:</span>{" "}
                         {schedule.frequency}
                       </p>
-                      <div className="flex items-center flex-wrap gap-2 mt-2">
+                      <div className="flex items-center flex-wrap gap-1.5 mt-2">
                         <span className="text-xs font-medium text-gray-500">
                           Times:
                         </span>
                         {schedule.times.map((time, i) => (
                           <span
                             key={i}
-                            className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium"
+                            className="text-xs px-2 py-0.5 bg-gray-200 text-gray-700 rounded font-medium"
                           >
                             {time}
                           </span>
@@ -367,17 +408,17 @@ const CandidateView = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-            <Activity className="w-6 h-6 text-green-600" />
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-gray-600" />
             <span>Recent Medication Activity</span>
           </h2>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {last7Days.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
+            <p className="text-gray-500 text-center text-sm py-6">
               No recent medication activity
             </p>
           ) : (
@@ -458,19 +499,19 @@ const CandidateView = () => {
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     return (
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-secondary-50 to-primary-50">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Medication Adherence Calendar
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900">
+            Medication Calendar
           </h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-xs text-gray-600 mt-0.5">
             Monthly overview of medication compliance
           </p>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {/* Month Selector */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <button
               onClick={() =>
                 setCurrentDate(
@@ -480,11 +521,11 @@ const CandidateView = () => {
                   )
                 )
               }
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
               ← Previous
             </button>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-gray-900">
               {format(currentDate, "MMMM yyyy")}
             </h3>
             <button
@@ -496,18 +537,18 @@ const CandidateView = () => {
                   )
                 )
               }
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Next →
             </button>
           </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-3">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
               <div
                 key={day}
-                className="text-center text-sm font-medium text-gray-600 py-2"
+                className="text-center text-xs font-semibold text-gray-500 py-2"
               >
                 {day}
               </div>
@@ -515,59 +556,76 @@ const CandidateView = () => {
 
             {/* Add empty cells for days before month starts */}
             {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-square"></div>
+              <div key={`empty-${i}`} className="min-h-[120px]"></div>
             ))}
 
             {days.map((day) => {
               const adherence = getAdherenceForDay(day);
               const isCurrentDay = isToday(day);
+              const dayMedications = getMedicationsForDay(day);
+              const visibleMeds = dayMedications.slice(0, 2);
+              const remainingCount = dayMedications.length - 2;
 
               return (
                 <div
                   key={day.toISOString()}
-                  className={`aspect-square flex flex-col items-center justify-center rounded-lg border-2 ${
-                    isCurrentDay ? "border-primary-500" : "border-transparent"
-                  } ${
-                    adherence.color
-                  } hover:opacity-80 transition-opacity cursor-pointer`}
-                  title={`${format(day, "MMM d")}: ${adherence.rate.toFixed(
-                    0
-                  )}% adherence`}
+                  className={`min-h-[120px] p-2 flex flex-col rounded-lg border ${
+                    isCurrentDay
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-gray-200 bg-white"
+                  } ${adherence.color} hover:shadow-md transition-shadow`}
                 >
-                  <span
-                    className={`text-sm ${
-                      isCurrentDay ? "font-bold" : "font-medium"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span
+                      className={`text-xs ${
+                        isCurrentDay
+                          ? "font-bold text-blue-700"
+                          : "font-medium text-gray-600"
+                      }`}
+                    >
+                      {format(day, "d")}
+                    </span>
+                    {dayMedications.length > 0 && (
+                      <span className="text-[10px] text-gray-400">
+                        {
+                          dayMedications.filter((m) => m.status === "taken")
+                            .length
+                        }
+                        /{dayMedications.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 flex-1">
+                    {visibleMeds.map((med) => (
+                      <div
+                        key={med.id}
+                        className={`text-[10px] px-1.5 py-1 rounded truncate ${
+                          med.status === "taken"
+                            ? "bg-green-100 text-green-700"
+                            : med.status === "missed"
+                            ? "bg-red-100 text-red-700"
+                            : med.status === "skipped"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                        title={`${med.schedule?.medicine_name} - ${format(
+                          new Date(med.scheduled_time),
+                          "h:mm a"
+                        )}`}
+                      >
+                        {med.schedule?.medicine_name}
+                      </div>
+                    ))}
+                    {remainingCount > 0 && (
+                      <div className="text-[10px] text-gray-500 font-medium px-1">
+                        +{remainingCount} more
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-6 flex items-center justify-center space-x-4 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
-              <span className="text-gray-600">100%</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-green-300 rounded"></div>
-              <span className="text-gray-600">75-99%</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-yellow-300 rounded"></div>
-              <span className="text-gray-600">50-74%</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-orange-300 rounded"></div>
-              <span className="text-gray-600">1-49%</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-red-300 rounded"></div>
-              <span className="text-gray-600">0%</span>
-            </div>
           </div>
         </div>
       </div>
@@ -694,54 +752,105 @@ const CandidateView = () => {
 
   return (
     <DashboardLayout title="Candidate Details" navItems={navItems}>
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Back</span>
-        </button>
-        <div className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-8 rounded-2xl shadow-xl">
-          <h1 className="text-4xl font-bold">
-            {candidate.first_name} {candidate.last_name}
-          </h1>
-          <p className="text-primary-100 mt-2 text-lg">
-            Age: {candidate.age} • Health Insights & Medication Management
-          </p>
+      {/* AI Summary Card */}
+      <div className="mb-6">
+        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  AI Health Summary
+                </h3>
+                {summaryGeneratedAt && (
+                  <p className="text-xs text-gray-500">
+                    Generated{" "}
+                    {format(new Date(summaryGeneratedAt), "MMM d, h:mm a")}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleGenerateSummary}
+              disabled={loadingSummary}
+              className="flex items-center space-x-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingSummary ? (
+                <>
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3" />
+                  <span>Generate Summary</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {aiSummary ? (
+            <div className="bg-white/80 rounded-lg p-3 text-sm text-gray-700 leading-relaxed">
+              {aiSummary}
+            </div>
+          ) : (
+            <div className="bg-white/80 rounded-lg p-3 text-sm text-gray-500 text-center italic">
+              Click "Generate Summary" to get an AI-powered health overview
+              based on today's medication status
+            </div>
+          )}
         </div>
       </div>
 
       {/* Next Medication Notification */}
       {nextMedication && (
-        <div className="mb-8 animate-fadeIn">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl shadow-xl p-6">
+        <div className="mb-6 animate-fadeIn">
+          <div
+            className={`border rounded-lg p-4 ${
+              nextMedication.status === "taken"
+                ? "bg-green-50 border-green-200"
+                : "bg-blue-50 border-blue-200"
+            }`}
+          >
             <div className="flex items-center justify-between">
-              <div className="flex items-start space-x-4 flex-1">
-                <div className="p-3 bg-white/20 rounded-full animate-pulse">
-                  <Bell className="w-8 h-8" />
+              <div className="flex items-start space-x-3 flex-1">
+                <div
+                  className={`p-2 rounded-lg ${
+                    nextMedication.status === "taken"
+                      ? "bg-green-100"
+                      : "bg-blue-100"
+                  }`}
+                >
+                  <Bell
+                    className={`w-5 h-5 ${
+                      nextMedication.status === "taken"
+                        ? "text-green-600"
+                        : "text-blue-600"
+                    }`}
+                  />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-2">
-                    Next Medication Reminder
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                    Next Medication
                   </h3>
-                  <div className="space-y-1">
-                    <p className="text-blue-50 text-lg">
-                      <span className="font-semibold">Medicine:</span>{" "}
+                  <div className="space-y-0.5 text-sm text-gray-700">
+                    <p>
+                      <span className="font-medium">Medicine:</span>{" "}
                       {schedules.find(
                         (s) => s.id === nextMedication.schedule_id
                       )?.medicine_name || "Unknown"}
                     </p>
-                    <p className="text-blue-50">
-                      <span className="font-semibold">Time:</span>{" "}
+                    <p>
+                      <span className="font-medium">Time:</span>{" "}
                       {format(
                         new Date(nextMedication.scheduled_time),
                         "h:mm a"
                       )}
                     </p>
-                    <p className="text-blue-50">
-                      <span className="font-semibold">Dosage:</span>{" "}
+                    <p>
+                      <span className="font-medium">Dosage:</span>{" "}
                       {
                         schedules.find(
                           (s) => s.id === nextMedication.schedule_id
@@ -751,47 +860,54 @@ const CandidateView = () => {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => handleMarkAsTaken(nextMedication.id)}
-                className="ml-4 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2"
-              >
-                <CheckCircle className="w-5 h-5" />
-                <span>Mark as Taken</span>
-              </button>
+              {nextMedication.status === "taken" ? (
+                <div className="ml-4 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium flex items-center space-x-2">
+                  <Check className="w-4 h-4" />
+                  <span>Taken</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleMarkAsTaken(nextMedication.id)}
+                  className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow transition-all flex items-center space-x-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Mark as Taken</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* Tab Navigation */}
-      <div className="mb-8 bg-white rounded-2xl shadow-md p-2">
-        <div className="flex space-x-2">
+      <div className="mb-6 bg-white border border-gray-200 rounded-lg p-1">
+        <div className="flex space-x-1">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
               activeTab === "overview"
-                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-gray-900 text-white"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab("calendar")}
-            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
               activeTab === "calendar"
-                ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-gray-900 text-white"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
           >
             Calendar
           </button>
           <button
             onClick={() => setActiveTab("medications")}
-            className={`flex-1 py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
               activeTab === "medications"
-                ? "bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-gray-900 text-white"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
           >
             Medications
