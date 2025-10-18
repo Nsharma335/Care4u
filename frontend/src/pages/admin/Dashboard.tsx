@@ -8,6 +8,8 @@ import CandidatesList from "./components/CandidatesList";
 import CandidateForm from "./components/CandidateForm";
 import FamilyMemberForm from "./components/FamilyMemberForm";
 import CandidateInsights from "../../components/CandidateInsights";
+import MedicationCalendar from "./components/MedicationCalendar";
+import MedicationForm from "./components/MedicationForm";
 import type { DashboardStats, CandidateWithRelations } from "@care4u/shared";
 
 const AdminDashboard = () => {
@@ -23,6 +25,11 @@ const AdminDashboard = () => {
   const [showInsights, setShowInsights] = useState(false);
   const [insightsCandidate, setInsightsCandidate] =
     useState<CandidateWithRelations | null>(null);
+  const [showMedicationCalendar, setShowMedicationCalendar] = useState(false);
+  const [showMedicationForm, setShowMedicationForm] = useState(false);
+  const [medicationCandidate, setMedicationCandidate] =
+    useState<CandidateWithRelations | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const navItems = [
     {
@@ -86,6 +93,31 @@ const AdminDashboard = () => {
     setShowInsights(true);
   };
 
+  const handleAddMedication = (candidate: CandidateWithRelations) => {
+    setMedicationCandidate(candidate);
+    setShowMedicationCalendar(true);
+  };
+
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    setShowMedicationCalendar(false);
+    setShowMedicationForm(true);
+  };
+
+  const handleMedicationSaved = () => {
+    setShowMedicationForm(false);
+    setSelectedDate(null);
+    setMedicationCandidate(null);
+    fetchData();
+  };
+
+  const handleCloseMedicationFlow = () => {
+    setShowMedicationCalendar(false);
+    setShowMedicationForm(false);
+    setSelectedDate(null);
+    setMedicationCandidate(null);
+  };
+
   if (loading) {
     return (
       <DashboardLayout title="Admin Dashboard" navItems={navItems}>
@@ -143,6 +175,7 @@ const AdminDashboard = () => {
           onAddFamily={handleAddFamilyMember}
           onRefresh={fetchData}
           onViewInsights={handleViewInsights}
+          onAddMedication={handleAddMedication}
         />
       </div>
 
@@ -177,6 +210,23 @@ const AdminDashboard = () => {
             setShowInsights(false);
             setInsightsCandidate(null);
           }}
+        />
+      )}
+
+      {showMedicationCalendar && medicationCandidate && (
+        <MedicationCalendar
+          candidate={medicationCandidate}
+          onClose={handleCloseMedicationFlow}
+          onDateSelect={handleDateSelect}
+        />
+      )}
+
+      {showMedicationForm && medicationCandidate && selectedDate && (
+        <MedicationForm
+          candidate={medicationCandidate}
+          selectedDate={selectedDate}
+          onClose={handleCloseMedicationFlow}
+          onSaved={handleMedicationSaved}
         />
       )}
     </DashboardLayout>

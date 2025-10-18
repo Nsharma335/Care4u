@@ -10,6 +10,8 @@ import {
   Check,
   AlertCircle,
   Activity,
+  Bell,
+  CheckCircle,
 } from "lucide-react";
 import api from "../lib/api";
 import toast from "react-hot-toast";
@@ -120,6 +122,33 @@ const CandidateView = () => {
   const takenToday = todayLogs.filter((l) => l.status === "taken").length;
   const missedToday = todayLogs.filter((l) => l.status === "missed").length;
 
+  // Find next upcoming medication
+  const now = new Date();
+  const upcomingLogs = logs
+    .filter((log) => {
+      const logTime = new Date(log.scheduled_time);
+      return logTime > now && log.status === "pending";
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_time).getTime() -
+        new Date(b.scheduled_time).getTime()
+    );
+
+  const nextMedication = upcomingLogs[0];
+
+  // Handle marking medication as taken
+  const handleMarkAsTaken = async (logId: string) => {
+    try {
+      await api.post("/api/medications/confirm", { log_id: logId });
+      toast.success("Medication marked as taken!");
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error("Error marking medication as taken:", error);
+      toast.error("Failed to mark medication as taken");
+    }
+  };
+
   // Calendar functions
   const getAdherenceForDay = (day: Date) => {
     const dayStr = format(day, "yyyy-MM-dd");
@@ -173,6 +202,108 @@ const CandidateView = () => {
             <span className="text-3xl font-bold">{missedToday}</span>
           </div>
           <h3 className="text-sm font-semibold opacity-90">Missed Today</h3>
+        </div>
+      </div>
+
+      {/* Today's Medications */}
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+            <Clock className="w-6 h-6 text-indigo-600" />
+            <span>Today's Medications ({todayLogs.length})</span>
+          </h2>
+        </div>
+
+        <div className="p-6">
+          {todayLogs.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              No medications scheduled for today
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {todayLogs.map((log) => {
+                const schedule = schedules.find(
+                  (s) => s.id === log.schedule_id
+                );
+                return (
+                  <div
+                    key={log.id}
+                    className={`p-4 rounded-lg border-2 flex items-center justify-between ${
+                      log.status === "taken"
+                        ? "bg-green-50 border-green-200"
+                        : log.status === "missed"
+                        ? "bg-red-50 border-red-200"
+                        : log.status === "skipped"
+                        ? "bg-yellow-50 border-yellow-200"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
+                      <div
+                        className={`p-3 rounded-full ${
+                          log.status === "taken"
+                            ? "bg-green-100"
+                            : log.status === "missed"
+                            ? "bg-red-100"
+                            : log.status === "skipped"
+                            ? "bg-yellow-100"
+                            : "bg-gray-100"
+                        }`}
+                      >
+                        <Pill
+                          className={`w-5 h-5 ${
+                            log.status === "taken"
+                              ? "text-green-600"
+                              : log.status === "missed"
+                              ? "text-red-600"
+                              : log.status === "skipped"
+                              ? "text-yellow-600"
+                              : "text-gray-600"
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">
+                          {schedule?.medicine_name || "Unknown"}
+                        </h3>
+                        <div className="flex items-center space-x-3 mt-1">
+                          <span className="text-sm text-gray-600">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            {format(new Date(log.scheduled_time), "h:mm a")}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {schedule?.dosage}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          log.status === "taken"
+                            ? "bg-green-100 text-green-700"
+                            : log.status === "missed"
+                            ? "bg-red-100 text-red-700"
+                            : log.status === "skipped"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {log.status}
+                      </span>
+                    </div>
+                    {log.status === "pending" && (
+                      <button
+                        onClick={() => handleMarkAsTaken(log.id)}
+                        className="ml-4 flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Mark Taken</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -255,6 +386,9 @@ const CandidateView = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Medicine
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Date & Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -263,11 +397,18 @@ const CandidateView = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Notes
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {last7Days.slice(0, 20).map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {schedules.find((s) => s.id === log.schedule_id)
+                          ?.medicine_name || "Unknown"}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {format(new Date(log.scheduled_time), "MMM d, h:mm a")}
                       </td>
@@ -288,6 +429,17 @@ const CandidateView = () => {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {log.notes || "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {log.status === "pending" && (
+                          <button
+                            onClick={() => handleMarkAsTaken(log.id)}
+                            className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>Mark Taken</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -560,6 +712,56 @@ const CandidateView = () => {
           </p>
         </div>
       </div>
+
+      {/* Next Medication Notification */}
+      {nextMedication && (
+        <div className="mb-8 animate-fadeIn">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start space-x-4 flex-1">
+                <div className="p-3 bg-white/20 rounded-full animate-pulse">
+                  <Bell className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold mb-2">
+                    Next Medication Reminder
+                  </h3>
+                  <div className="space-y-1">
+                    <p className="text-blue-50 text-lg">
+                      <span className="font-semibold">Medicine:</span>{" "}
+                      {schedules.find(
+                        (s) => s.id === nextMedication.schedule_id
+                      )?.medicine_name || "Unknown"}
+                    </p>
+                    <p className="text-blue-50">
+                      <span className="font-semibold">Time:</span>{" "}
+                      {format(
+                        new Date(nextMedication.scheduled_time),
+                        "h:mm a"
+                      )}
+                    </p>
+                    <p className="text-blue-50">
+                      <span className="font-semibold">Dosage:</span>{" "}
+                      {
+                        schedules.find(
+                          (s) => s.id === nextMedication.schedule_id
+                        )?.dosage
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => handleMarkAsTaken(nextMedication.id)}
+                className="ml-4 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2"
+              >
+                <CheckCircle className="w-5 h-5" />
+                <span>Mark as Taken</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="mb-8 bg-white rounded-2xl shadow-md p-2">

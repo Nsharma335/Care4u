@@ -280,6 +280,87 @@ router.get('/stats', async (req: AuthRequest, res) => {
   }
 });
 
+// Create medication schedule
+router.post('/medications/schedule', async (req: AuthRequest, res) => {
+  try {
+    const {
+      candidate_id,
+      medicine_name,
+      dosage,
+      frequency,
+      times,
+      start_date,
+      end_date,
+      instructions
+    } = req.body;
+
+    // Validate required fields
+    if (!candidate_id || !medicine_name || !dosage || !frequency || !times || !start_date) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Insert medication schedule
+    const { data: schedule, error: scheduleError } = await supabase
+      .from('medication_schedules')
+      .insert({
+        candidate_id,
+        medicine_name,
+        dosage,
+        frequency,
+        times,
+        start_date,
+        end_date,
+        instructions,
+        active: true
+      })
+      .select()
+      .single();
+
+    if (scheduleError) throw scheduleError;
+
+    // Create medication logs for the schedule
+    // For now, create logs for the next 30 days
+    const logs = [];
+    const startDateObj = new Date(start_date);
+    const endDateObj = end_date ? new Date(end_date) : new Date(startDateObj);
+    endDateObj.setDate(endDateObj.getDate() + 30); // Default 30 days if no end date
+
+    for (let d = new Date(startDateObj); d <= endDateObj; d.setDate(d.getDate() + 1)) {
+      for (const time of times) {
+        const [hours, minutes] = time.split(':');
+        const scheduledTime = new Date(d);
+        scheduledTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+        logs.push({
+          schedule_id: schedule.id,
+          candidate_id,
+          scheduled_time: scheduledTime.toISOString(),
+          status: 'pending'
+        });
+      }
+
+      // For weekly frequency, skip 6 days
+      if (frequency === 'weekly') {
+        d.setDate(d.getDate() + 6);
+      }
+    }
+
+    // Insert logs in batches to avoid overwhelming the database
+    if (logs.length > 0) {
+      const { error: logsError } = await supabase
+        .from('medication_logs')
+        .insert(logs);
+
+      if (logsError) throw logsError;
+    }
+
+    res.status(201).json({ schedule, logs_created: logs.length });
+  } catch (error: any) {
+    console.error('Error creating medication schedule:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get detailed stats for a specific candidate
 router.get('/candidates/:id/stats', async (req: AuthRequest, res) => {
   try {
