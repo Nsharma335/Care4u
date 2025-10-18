@@ -287,16 +287,35 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
                 </div>
                 
                 <div className="flex items-center justify-between text-sm text-gray-600">
-                  <div>
-                    <p className="font-medium">${donation.amount} {donation.currency}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-medium text-lg">${donation.amount} {donation.currency}</p>
+                      <p className="text-gray-500">{new Date(donation.created_at).toLocaleDateString()}</p>
+                    </div>
                     {donation.candidates && (
-                      <p>For: {donation.candidates.first_name} {donation.candidates.last_name}</p>
+                      <div className="flex items-center mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <User className="w-4 h-4 text-blue-600 mr-2" />
+                        <div>
+                          <p className="font-medium text-blue-900">
+                            Patient: {donation.candidates.first_name} {donation.candidates.last_name}
+                          </p>
+                          <p className="text-xs text-blue-700">Specific patient donation</p>
+                        </div>
+                      </div>
+                    )}
+                    {donation.donation_type === 'general' && (
+                      <div className="flex items-center mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                        <Building2 className="w-4 h-4 text-green-600 mr-2" />
+                        <div>
+                          <p className="font-medium text-green-900">General donation</p>
+                          <p className="text-xs text-green-700">Donation to institute</p>
+                        </div>
+                      </div>
                     )}
                     {donation.message && (
-                      <p className="italic">"{donation.message}"</p>
+                      <p className="mt-2 italic text-gray-600">"{donation.message}"</p>
                     )}
                   </div>
-                  <p>{new Date(donation.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
             ))}
@@ -386,10 +405,25 @@ const CareConnect = ({ candidates }: CareConnectProps) => {
                     <option value="">Select a patient</option>
                     {instituteCandidates.map((candidate) => (
                       <option key={candidate.id} value={candidate.id}>
-                        {candidate.first_name} {candidate.last_name}
+                        {candidate.first_name} {candidate.last_name} (Age: {candidate.age})
                       </option>
                     ))}
                   </select>
+                  
+                  {/* Selected Patient Display */}
+                  {selectedCandidate && (
+                    <div className="mt-3 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                      <div className="flex items-center">
+                        <User className="w-5 h-5 text-primary-600 mr-2" />
+                        <div>
+                          <p className="font-medium text-primary-900">
+                            Selected Patient: {selectedCandidate.first_name} {selectedCandidate.last_name}
+                          </p>
+                          <p className="text-sm text-primary-700">Age: {selectedCandidate.age}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

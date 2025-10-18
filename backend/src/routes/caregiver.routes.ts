@@ -272,5 +272,43 @@ router.get('/donations', async (req: AuthRequest, res) => {
   }
 });
 
+// Get all institutes
+router.get('/institutes', async (req: AuthRequest, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('institutes')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    res.json({ institutes: data || [] });
+  } catch (error: any) {
+    console.error('Error fetching institutes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get candidates for a specific institute
+router.get('/institutes/:id/candidates', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('candidates')
+      .select('*')
+      .eq('institute_id', id)
+      .order('first_name');
+
+    if (error) throw error;
+
+    res.json({ candidates: data || [] });
+  } catch (error: any) {
+    console.error('Error fetching institute candidates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

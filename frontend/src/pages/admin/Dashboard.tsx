@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
-import { Users, Activity, UserPlus } from "lucide-react";
+import { Users, Activity, UserPlus, DollarSign } from "lucide-react";
 import api from "../../lib/api";
 import toast from "react-hot-toast";
 import StatsCards from "./components/StatsCards";
@@ -10,6 +10,7 @@ import FamilyMemberForm from "./components/FamilyMemberForm";
 import CandidateInsights from "../../components/CandidateInsights";
 import MedicationCalendar from "./components/MedicationCalendar";
 import MedicationForm from "./components/MedicationForm";
+import DonationsManagement from "./components/DonationsManagement";
 import type { DashboardStats, CandidateWithRelations } from "@care4u/shared";
 
 const AdminDashboard = () => {
@@ -30,6 +31,7 @@ const AdminDashboard = () => {
   const [medicationCandidate, setMedicationCandidate] =
     useState<CandidateWithRelations | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDonationsManagement, setShowDonationsManagement] = useState(false);
 
   const navItems = [
     {
@@ -152,6 +154,13 @@ const AdminDashboard = () => {
           <UserPlus className="w-5 h-5" />
           <span>Add Candidate</span>
         </button>
+        <button
+          onClick={() => setShowDonationsManagement(true)}
+          className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg"
+        >
+          <DollarSign className="w-5 h-5" />
+          <span>Manage Donations</span>
+        </button>
       </div>
 
       {/* Candidates List */}
@@ -227,6 +236,12 @@ const AdminDashboard = () => {
           selectedDate={selectedDate}
           onClose={handleCloseMedicationFlow}
           onSaved={handleMedicationSaved}
+        />
+      )}
+
+      {showDonationsManagement && (
+        <DonationsManagement
+          onClose={() => setShowDonationsManagement(false)}
         />
       )}
     </DashboardLayout>

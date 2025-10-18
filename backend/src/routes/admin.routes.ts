@@ -420,5 +420,392 @@ router.get('/candidates/:id/stats', async (req: AuthRequest, res) => {
   }
 });
 
+// Get all donations for the admin's institute
+router.get('/donations', async (req: AuthRequest, res) => {
+  try {
+    const { data: admin } = await supabase
+      .from('institute_admins')
+      .select('id, institute_id')
+      .eq('user_id', req.user!.id)
+      .single();
+
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (!admin.institute_id) {
+      return res.status(400).json({ error: 'Admin not associated with any institute' });
+    }
+
+    const { data: donations, error } = await supabase
+      .from('donations')
+      .select(`
+        *,
+        institutes(name, type),
+        candidates(first_name, last_name),
+        auth.users!donations_donor_id_fkey(email)
+      `)
+      .eq('institute_id', admin.institute_id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ donations: donations || [] });
+  } catch (error: any) {
+    console.error('Error fetching donations:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Approve a donation
+router.patch('/donations/:id/approve', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { transaction_id } = req.body;
+
+    const { data: admin } = await supabase
+      .from('institute_admins')
+      .select('id, institute_id')
+      .eq('user_id', req.user!.id)
+      .single();
+
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (!admin.institute_id) {
+      return res.status(400).json({ error: 'Admin not associated with any institute' });
+    }
+
+    // Verify the donation belongs to this admin's institute
+    const { data: donation, error: fetchError } = await supabase
+      .from('donations')
+      .select('institute_id, status')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (!donation || donation.institute_id !== admin.institute_id) {
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+
+    if (donation.status !== 'pending') {
+      return res.status(400).json({ error: 'Donation is not pending' });
+    }
+
+    // Update donation status to approved
+    const { data: updatedDonation, error: updateError } = await supabase
+      .from('donations')
+      .update({
+        status: 'approved',
+        approved_by: req.user!.id,
+        approved_at: new Date().toISOString(),
+        transaction_id: transaction_id || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        institutes(name, type),
+        candidates(first_name, last_name),
+        auth.users!donations_donor_id_fkey(email)
+      `)
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({ donation: updatedDonation });
+  } catch (error: any) {
+    console.error('Error approving donation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reject a donation
+router.patch('/donations/:id/reject', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { rejection_reason } = req.body;
+
+    if (!rejection_reason) {
+      return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+
+    const { data: admin } = await supabase
+      .from('institute_admins')
+      .select('id, institute_id')
+      .eq('user_id', req.user!.id)
+      .single();
+
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (!admin.institute_id) {
+      return res.status(400).json({ error: 'Admin not associated with any institute' });
+    }
+
+    // Verify the donation belongs to this admin's institute
+    const { data: donation, error: fetchError } = await supabase
+      .from('donations')
+      .select('institute_id, status')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (!donation || donation.institute_id !== admin.institute_id) {
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+
+    if (donation.status !== 'pending') {
+      return res.status(400).json({ error: 'Donation is not pending' });
+    }
+
+    // Update donation status to rejected
+    const { data: updatedDonation, error: updateError } = await supabase
+      .from('donations')
+      .update({
+        status: 'rejected',
+        approved_by: req.user!.id,
+        approved_at: new Date().toISOString(),
+        rejection_reason,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        institutes(name, type),
+        candidates(first_name, last_name),
+        auth.users!donations_donor_id_fkey(email)
+      `)
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({ donation: updatedDonation });
+  } catch (error: any) {
+    console.error('Error rejecting donation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get donation statistics
+router.get('/donations/stats', async (req: AuthRequest, res) => {
+  try {
+    const { data: admin } = await supabase
+      .from('institute_admins')
+      .select('id, institute_id')
+      .eq('user_id', req.user!.id)
+      .single();
+
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (!admin.institute_id) {
+      return res.status(400).json({ error: 'Admin not associated with any institute' });
+    }
+
+    // Get total donations count
+    const { count: totalDonations } = await supabase
+      .from('donations')
+      .select('*', { count: 'exact', head: true })
+      .eq('institute_id', admin.institute_id);
+
+    // Get pending donations count
+    const { count: pendingDonations } = await supabase
+      .from('donations')
+      .select('*', { count: 'exact', head: true })
+      .eq('institute_id', admin.institute_id)
+      .eq('status', 'pending');
+
+    // Get approved donations count
+    const { count: approvedDonations } = await supabase
+      .from('donations')
+      .select('*', { count: 'exact', head: true })
+      .eq('institute_id', admin.institute_id)
+      .eq('status', 'approved');
+
+    // Get total amount raised
+    const { data: totalAmountData } = await supabase
+      .from('donations')
+      .select('amount')
+      .eq('institute_id', admin.institute_id)
+      .eq('status', 'approved');
+
+    const totalAmount = totalAmountData?.reduce((sum, donation) => sum + parseFloat(donation.amount), 0) || 0;
+
+    // Get recent donations (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { count: recentDonations } = await supabase
+      .from('donations')
+      .select('*', { count: 'exact', head: true })
+      .eq('institute_id', admin.institute_id)
+      .gte('created_at', sevenDaysAgo.toISOString());
+
+    res.json({
+      total_donations: totalDonations || 0,
+      pending_donations: pendingDonations || 0,
+      approved_donations: approvedDonations || 0,
+      total_amount: totalAmount,
+      recent_donations: recentDonations || 0
+    });
+  } catch (error: any) {
+    console.error('Error fetching donation stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get spending analytics by institute
+router.get('/donations/spending/institute', async (req: AuthRequest, res) => {
+  try {
+    const { data: admin } = await supabase
+      .from('institute_admins')
+      .select('id, institute_id')
+      .eq('user_id', req.user!.id)
+      .single();
+
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (!admin.institute_id) {
+      return res.status(400).json({ error: 'Admin not associated with any institute' });
+    }
+
+    // Get all donations for this institute (including pending)
+    const { data: donations, error } = await supabase
+      .from('donations')
+      .select(`
+        *,
+        institutes(name, type),
+        candidates(first_name, last_name),
+        auth.users!donations_donor_id_fkey(email)
+      `)
+      .eq('institute_id', admin.institute_id)
+      .in('status', ['pending', 'approved', 'completed'])
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Calculate institute breakdown
+    const instituteMap = new Map();
+    (donations || []).forEach(donation => {
+      const key = donation.institute_id;
+      if (!instituteMap.has(key)) {
+        instituteMap.set(key, {
+          institute_id: key,
+          institute_name: donation.institutes?.name || 'Unknown Institute',
+          institute_type: donation.institutes?.type || 'unknown',
+          total_amount: 0,
+          count: 0,
+          pending_amount: 0,
+          approved_amount: 0
+        });
+      }
+      const entry = instituteMap.get(key);
+      entry.total_amount += donation.amount;
+      entry.count += 1;
+      
+      if (donation.status === 'pending') {
+        entry.pending_amount += donation.amount;
+      } else if (donation.status === 'approved' || donation.status === 'completed') {
+        entry.approved_amount += donation.amount;
+      }
+    });
+
+    const instituteBreakdown = Array.from(instituteMap.values())
+      .map(entry => ({
+        ...entry,
+        percentage: entry.total_amount > 0 ? (entry.total_amount / entry.total_amount) * 100 : 0
+      }))
+      .sort((a, b) => b.total_amount - a.total_amount);
+
+    res.json({ institute_breakdown: instituteBreakdown });
+  } catch (error: any) {
+    console.error('Error fetching institute spending analytics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get spending analytics by patient
+router.get('/donations/spending/patient', async (req: AuthRequest, res) => {
+  try {
+    const { data: admin } = await supabase
+      .from('institute_admins')
+      .select('id, institute_id')
+      .eq('user_id', req.user!.id)
+      .single();
+
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (!admin.institute_id) {
+      return res.status(400).json({ error: 'Admin not associated with any institute' });
+    }
+
+    // Get all donations for this institute (including pending)
+    const { data: donations, error } = await supabase
+      .from('donations')
+      .select(`
+        *,
+        institutes(name, type),
+        candidates(first_name, last_name),
+        auth.users!donations_donor_id_fkey(email)
+      `)
+      .eq('institute_id', admin.institute_id)
+      .in('status', ['pending', 'approved', 'completed'])
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Calculate patient breakdown (only for specific patient donations)
+    const patientDonations = (donations || []).filter(d => d.candidate_id);
+    const patientMap = new Map();
+    
+    patientDonations.forEach(donation => {
+      const key = donation.candidate_id!;
+      if (!patientMap.has(key)) {
+        patientMap.set(key, {
+          candidate_id: key,
+          candidate_name: donation.candidates ? 
+            `${donation.candidates.first_name} ${donation.candidates.last_name}` : 
+            'Unknown Patient',
+          total_amount: 0,
+          count: 0,
+          pending_amount: 0,
+          approved_amount: 0
+        });
+      }
+      const entry = patientMap.get(key);
+      entry.total_amount += donation.amount;
+      entry.count += 1;
+      
+      if (donation.status === 'pending') {
+        entry.pending_amount += donation.amount;
+      } else if (donation.status === 'approved' || donation.status === 'completed') {
+        entry.approved_amount += donation.amount;
+      }
+    });
+
+    const patientBreakdown = Array.from(patientMap.values())
+      .map(entry => ({
+        ...entry,
+        percentage: entry.total_amount > 0 ? (entry.total_amount / entry.total_amount) * 100 : 0
+      }))
+      .sort((a, b) => b.total_amount - a.total_amount);
+
+    res.json({ patient_breakdown: patientBreakdown });
+  } catch (error: any) {
+    console.error('Error fetching patient spending analytics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

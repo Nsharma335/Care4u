@@ -365,26 +365,33 @@ const CareWallet = ({ candidates }: CareWalletProps) => {
           {spendingData && spendingData.patientBreakdown.length > 0 ? (
             <div className="space-y-3">
               {spendingData.patientBreakdown.map((patient, index) => (
-                <div key={patient.candidate_id} className="space-y-2">
+                <div key={patient.candidate_id} className="space-y-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-5 h-5 text-blue-500" />
-                      <span className="font-medium text-gray-900">{patient.candidate_name}</span>
-                      <span className="text-sm text-gray-500">({patient.count} donations)</span>
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-100 rounded-full">
+                        <Users className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-900 text-lg">{patient.candidate_name}</span>
+                        <p className="text-sm text-gray-600">Patient-specific donations</p>
+                      </div>
                     </div>
-                    <span className="font-semibold text-gray-900">${patient.total_amount.toFixed(2)}</span>
+                    <div className="text-right">
+                      <span className="font-bold text-xl text-gray-900">${patient.total_amount.toFixed(2)}</span>
+                      <p className="text-sm text-gray-500">({patient.count} donations)</p>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 rounded-full h-3">
                     <div
-                      className="h-2 rounded-full transition-all duration-300"
+                      className="h-3 rounded-full transition-all duration-300"
                       style={{
                         width: `${patient.percentage}%`,
                         backgroundColor: getPieChartColor(index)
                       }}
                     ></div>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {patient.percentage.toFixed(1)}% of total spending
+                  <div className="text-sm text-gray-600">
+                    {patient.percentage.toFixed(1)}% of total patient-specific spending
                   </div>
                 </div>
               ))}

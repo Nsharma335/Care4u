@@ -225,11 +225,18 @@ export interface Donation {
   currency: string;
   donation_type: 'general' | 'specific_patient';
   message?: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
   payment_method?: string;
   transaction_id?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
   created_at: string;
   updated_at?: string;
+  // Related data
+  institutes?: Institute;
+  candidates?: { first_name: string; last_name: string };
+  auth?: { users?: { email: string } };
 }
 
 export interface CreateDonationRequest {
