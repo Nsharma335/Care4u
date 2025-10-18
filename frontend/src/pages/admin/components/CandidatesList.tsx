@@ -18,7 +18,6 @@ interface CandidatesListProps {
   onEdit: (candidate: CandidateWithRelations) => void;
   onAddFamily: (candidateId: string) => void;
   onRefresh: () => void;
-  onViewInsights: (candidate: CandidateWithRelations) => void;
   onAddMedication: (candidate: CandidateWithRelations) => void;
 }
 
@@ -27,7 +26,6 @@ const CandidatesList = ({
   onEdit,
   onAddFamily,
   onRefresh,
-  onViewInsights,
   onAddMedication,
 }: CandidatesListProps) => {
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -110,7 +108,9 @@ const CandidatesList = ({
                 <tr
                   key={candidate.id}
                   className="hover:bg-blue-50 transition-colors cursor-pointer"
-                  onClick={() => onViewInsights(candidate)}
+                  onClick={() =>
+                    window.open(`/candidate/view/${candidate.id}`, "_blank")
+                  }
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
