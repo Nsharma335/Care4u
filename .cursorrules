@@ -1,0 +1,40 @@
+# Care4U Project Rules
+
+## Code Style
+- Use TypeScript strict mode
+- Follow ESLint and Prettier configurations
+- Use functional components with hooks in React
+- Use async/await over promises
+- Prefer const over let
+
+## Architecture
+- Shared types between frontend and backend
+- RLS policies for database security
+- Environment variables for configuration
+- API versioning in routes
+
+## Security
+- Never commit .env files
+- Use Supabase RLS policies
+- Validate all user inputs
+- Sanitize data before database operations
+- Use prepared statements for SQL queries
+
+## Testing
+- Write unit tests for business logic
+- Integration tests for API endpoints
+- E2E tests for critical user flows
+
+## Performance
+- Optimize database queries with indexes
+- Use pagination for large datasets
+- Lazy load components where appropriate
+- Optimize images and assets
+
+## Accessibility
+- Support keyboard navigation
+- Use ARIA labels appropriately
+- Maintain color contrast ratios
+- Support screen readers
+- Provide text alternatives for media
+
