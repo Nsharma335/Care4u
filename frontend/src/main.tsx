@@ -6,13 +6,6 @@ import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./contexts/AuthContext";
 
-console.log("[main.tsx] Initializing React app...");
-console.log("[main.tsx] Environment:", {
-  mode: import.meta.env.MODE,
-  apiUrl: import.meta.env.VITE_API_URL,
-  supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-});
-
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <AuthProvider>
