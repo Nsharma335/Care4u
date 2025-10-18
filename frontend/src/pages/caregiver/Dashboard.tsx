@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
 import TabContainer from "../../components/TabContainer";
-import { Activity, Heart, Eye, Users, BarChart3, MessageCircle, Wallet, Music } from "lucide-react";
+import { Activity, Heart, Eye, Users, BarChart3, MessageCircle, Wallet } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../lib/api";
 import toast from "react-hot-toast";
@@ -283,15 +283,6 @@ const CaregiverDashboard = () => {
     <CareWallet candidates={candidates} />
   ), [candidates]);
 
-  const CareTunesContent = useMemo(() => (
-    <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
-      <div className="text-center">
-        <Music className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">CareTunes</h3>
-        <p className="text-gray-500">Coming soon...</p>
-      </div>
-    </div>
-  ), []);
 
   const tabs = useMemo(() => [
     {
@@ -318,13 +309,8 @@ const CaregiverDashboard = () => {
       id: "care-wallet",
       label: "CareWallet",
       content: CareWalletContent
-    },
-    {
-      id: "care-tunes",
-      label: "CareTunes",
-      content: CareTunesContent
     }
-  ], [CareScheduleContent, CareCircleContent, CareInsightsContent, CareConnectContent, CareWalletContent, CareTunesContent]);
+  ], [CareScheduleContent, CareCircleContent, CareInsightsContent, CareConnectContent, CareWalletContent]);
 
   if (loading) {
     return (
